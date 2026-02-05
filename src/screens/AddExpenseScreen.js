@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native'; 
-import { Button, Text, Chip } from 'react-native-paper'; // Imported Chip
+import { Button, Text } from 'react-native-paper'; 
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useExpenses } from '../context/ExpenseContext';
+import { useExpenses } from '../context/ExpenseContext'; // Correct Import
 
 const CATEGORIES = ['Food', 'Travel', 'Bills', 'Shopping', 'Health', 'Other'];
-const MODES = ['UPI', 'Cash', 'Card']; // Default Modes
+const MODES = ['UPI', 'Cash', 'Card'];
 
 export default function AddExpenseScreen({ navigation, route }) {
-  const { addExpense, updateExpense, upiApps } = useExpenses(); // Get upiApps
+  const { addExpense, updateExpense, upiApps } = useExpenses();
   const existingExpense = route.params?.expense;
   const isEditing = !!existingExpense;
 
@@ -19,9 +19,8 @@ export default function AddExpenseScreen({ navigation, route }) {
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date());
   
-  // --- NEW: Payment State ---
-  const [paymentMode, setPaymentMode] = useState('UPI'); // Default UPI
-  const [paymentApp, setPaymentApp] = useState(null);    // e.g. 'GPay'
+  const [paymentMode, setPaymentMode] = useState('UPI'); 
+  const [paymentApp, setPaymentApp] = useState(null);    
 
   const [showPicker, setShowPicker] = useState(false);
 
@@ -32,7 +31,6 @@ export default function AddExpenseScreen({ navigation, route }) {
       setCategory(existingExpense.category);
       setDescription(existingExpense.description || '');
       setDate(new Date(existingExpense.date));
-      // Load Mode
       setPaymentMode(existingExpense.paymentMode || 'UPI');
       setPaymentApp(existingExpense.paymentApp || null);
     }
@@ -50,8 +48,8 @@ export default function AddExpenseScreen({ navigation, route }) {
       category,
       description,
       date: date.toISOString(),
-      paymentMode, // Save Mode
-      paymentApp: paymentMode === 'UPI' ? paymentApp : null, // Save App only if UPI
+      paymentMode, 
+      paymentApp: paymentMode === 'UPI' ? paymentApp : null, 
     };
 
     if (isEditing) {
@@ -64,8 +62,10 @@ export default function AddExpenseScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      {/* Use flexGrow: 1 so the content fills the height */}
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
+        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <Text style={styles.backText}>✕</Text>
@@ -74,6 +74,7 @@ export default function AddExpenseScreen({ navigation, route }) {
           <View style={{ width: 40 }} /> 
         </View>
 
+        {/* Amount Section (Compacted) */}
         <View style={styles.amountContainer}>
           <Text style={styles.currencySymbol}>₹</Text>
           <TextInput
@@ -86,7 +87,10 @@ export default function AddExpenseScreen({ navigation, route }) {
           />
         </View>
 
+        {/* Form Section (Expands to fill space) */}
         <View style={styles.formSection}>
+          
+          {/* Title Input */}
           <Text style={styles.label}>Title</Text>
           <TextInput
             style={styles.simpleInput}
@@ -96,13 +100,13 @@ export default function AddExpenseScreen({ navigation, route }) {
             onChangeText={setName}
           />
 
-          {/* --- NEW: Payment Mode Selector --- */}
+          {/* Payment Method */}
           <Text style={styles.label}>Payment Method</Text>
           <View style={styles.chipContainer}>
             {MODES.map((mode) => (
               <TouchableOpacity
                 key={mode}
-                onPress={() => { setPaymentMode(mode); setPaymentApp(null); }} // Reset App if mode changes
+                onPress={() => { setPaymentMode(mode); setPaymentApp(null); }} 
                 style={[styles.chip, paymentMode === mode ? styles.activeChip : styles.inactiveChip]}
               >
                 <Text style={[styles.chipText, paymentMode === mode ? styles.activeChipText : styles.inactiveChipText]}>{mode}</Text>
@@ -110,15 +114,14 @@ export default function AddExpenseScreen({ navigation, route }) {
             ))}
           </View>
 
-          {/* --- NEW: Payment App Selector (Only if UPI) --- */}
+          {/* UPI App Selection */}
           {paymentMode === 'UPI' && (
              <View style={styles.subOptionContainer}>
-                <Text style={styles.subLabel}>Which App?</Text>
                 <View style={styles.chipContainer}>
                   {upiApps.map((app) => (
                     <TouchableOpacity
                       key={app}
-                      onPress={() => setPaymentApp(app === paymentApp ? null : app)} // Toggle
+                      onPress={() => setPaymentApp(app === paymentApp ? null : app)} 
                       style={[styles.miniChip, paymentApp === app ? styles.activeMiniChip : styles.inactiveMiniChip]}
                     >
                       <Text style={[styles.miniChipText, paymentApp === app ? styles.activeMiniChipText : styles.inactiveMiniChipText]}>{app}</Text>
@@ -128,6 +131,7 @@ export default function AddExpenseScreen({ navigation, route }) {
              </View>
           )}
 
+          {/* Category */}
           <Text style={styles.label}>Category</Text>
           <View style={styles.chipContainer}>
             {CATEGORIES.map((cat) => (
@@ -143,6 +147,7 @@ export default function AddExpenseScreen({ navigation, route }) {
             ))}
           </View>
 
+          {/* Date Picker */}
           <Text style={styles.label}>Date</Text>
           <TouchableOpacity onPress={() => setShowPicker(true)} style={styles.dateRow}>
             <Text style={styles.dateText}>{date.toDateString()}</Text>
@@ -152,9 +157,10 @@ export default function AddExpenseScreen({ navigation, route }) {
             <DateTimePicker value={date} mode="date" display="default" onChange={(e, d) => { setShowPicker(false); if(d) setDate(d); }} />
           )}
 
+          {/* Description */}
           <Text style={styles.label}>Description (Optional)</Text>
           <TextInput
-            style={[styles.simpleInput, { height: 80, textAlignVertical: 'top' }]}
+            style={[styles.simpleInput, { height: 60, textAlignVertical: 'top' }]} // Reduced height slightly
             placeholder="Add notes..."
             placeholderTextColor="#999"
             value={description}
@@ -162,9 +168,17 @@ export default function AddExpenseScreen({ navigation, route }) {
             multiline
           />
 
-          <Button mode="contained" onPress={handleSave} style={styles.saveBtn} textColor="#FFF" labelStyle={{ fontSize: 16, fontWeight: 'bold' }}>
+          {/* SAVE BUTTON - Pushed to Bottom */}
+          <Button 
+            mode="contained" 
+            onPress={handleSave} 
+            style={styles.saveBtn} 
+            textColor="#FFF" 
+            labelStyle={{ fontSize: 16, fontWeight: 'bold' }}
+          >
             Save
           </Button>
+
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -173,19 +187,32 @@ export default function AddExpenseScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  scrollContent: { paddingBottom: 40 },
+  
+  // Important: flexGrow allows content to expand
+  scrollContent: { flexGrow: 1, paddingBottom: 20 },
+
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 5 },
   backBtn: { padding: 10 },
   backText: { fontSize: 22, color: '#333' },
   headerTitle: { fontSize: 16, fontWeight: '600', color: '#333' },
-  amountContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 10, marginBottom: 20 },
-  currencySymbol: { fontSize: 36, fontWeight: 'bold', color: '#1A1A1A', marginRight: 5 },
-  amountInput: { fontSize: 36, fontWeight: 'bold', color: '#1A1A1A', minWidth: 80, textAlign: 'center' },
-  formSection: { backgroundColor: '#F5F7FA', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, flex: 1, minHeight: 500 },
-  label: { fontSize: 13, fontWeight: 'bold', color: '#888', marginBottom: 8, marginTop: 12 },
-  simpleInput: { backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: '#000', borderWidth: 1, borderColor: '#eee', marginBottom: 5 },
   
-  // Chip Styles
+  // Compacted Amount Section
+  amountContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 5, marginBottom: 15 },
+  currencySymbol: { fontSize: 32, fontWeight: 'bold', color: '#1A1A1A', marginRight: 5 },
+  amountInput: { fontSize: 32, fontWeight: 'bold', color: '#1A1A1A', minWidth: 80, textAlign: 'center' },
+  
+  // Form Section expands to fill screen
+  formSection: { 
+    backgroundColor: '#F5F7FA', 
+    borderTopLeftRadius: 30, 
+    borderTopRightRadius: 30, 
+    padding: 24, 
+    flex: 1, // Takes remaining space
+  },
+
+  label: { fontSize: 13, fontWeight: 'bold', color: '#888', marginBottom: 8, marginTop: 12 },
+  simpleInput: { backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, fontSize: 15, color: '#000', borderWidth: 1, borderColor: '#eee', marginBottom: 5 },
+  
   chipContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, marginBottom: 4 },
   activeChip: { backgroundColor: '#1A1A1A' },
@@ -194,17 +221,23 @@ const styles = StyleSheet.create({
   activeChipText: { color: '#fff' },
   inactiveChipText: { color: '#555' },
 
-  // Mini Chips for Payment Apps
-  subOptionContainer: { marginTop: 5, marginBottom: 10, marginLeft: 5 },
-  subLabel: { fontSize: 11, color: '#aaa', marginBottom: 5, fontWeight: '600' },
+  subOptionContainer: { marginTop: 5, marginBottom: 5 },
   miniChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: '#ddd' },
   activeMiniChip: { backgroundColor: '#e0e0e0', borderColor: '#ccc' },
   inactiveMiniChip: { backgroundColor: 'transparent' },
   activeMiniChipText: { color: '#000', fontSize: 12, fontWeight: 'bold' },
   inactiveMiniChipText: { color: '#666', fontSize: 12 },
 
-  dateRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#eee' },
+  dateRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#eee' },
   dateText: { fontSize: 15, color: '#1A1A1A', fontWeight: '500' },
-  calendarIcon: { fontSize: 16 },
-  saveBtn: { marginTop: 30, backgroundColor: '#1A1A1A', borderRadius: 16, elevation: 0 }
+  
+  // Pushes button to bottom of form
+  saveBtn: { 
+    marginTop: 'auto', // <--- Magic Line
+    paddingVertical: 4,
+    backgroundColor: '#1A1A1A', 
+    borderRadius: 16, 
+    elevation: 0,
+    marginBottom: 10 // Extra safety padding
+  }
 });
