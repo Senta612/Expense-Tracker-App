@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Alert, TextInput, ScrollView } from 'react-native';
 import { Text, Button, Surface, IconButton, Chip } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useExpenses } from './ExpenseContext';
+import { useExpenses } from '../context/ExpenseContext';
 
 export default function SettingsScreen({ navigation }) {
   const { username, updateUsername, clearAllData, upiApps, addUpiApp, removeUpiApp } = useExpenses();

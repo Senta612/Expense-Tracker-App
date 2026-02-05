@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity, StatusBar, TextInput } from 'react-native';
 import { Text, FAB, IconButton, Surface, Modal, Portal, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useExpenses } from './ExpenseContext';
+import { useExpenses } from '../context/ExpenseContext';
 
 export default function HomeScreen({ navigation }) {
   // Get functions and data from Context

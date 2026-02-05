@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
 import { Text, Surface } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useExpenses } from './ExpenseContext';
+import { useExpenses } from '../context/ExpenseContext';
 
 // --- NEW: Import the Compare Component ---
-import Compare from './components/Compare';
+import Compare from '../components/Compare';
 
 const CATEGORIES = ['Food', 'Travel', 'Bills', 'Shopping', 'Health', 'Other'];
 

@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput } from
 import { Button, Text, Chip } from 'react-native-paper'; // Imported Chip
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useExpenses } from './ExpenseContext';
+import { useExpenses } from '../context/ExpenseContext';
 
 const CATEGORIES = ['Food', 'Travel', 'Bills', 'Shopping', 'Health', 'Other'];
 const MODES = ['UPI', 'Cash', 'Card']; // Default Modes
