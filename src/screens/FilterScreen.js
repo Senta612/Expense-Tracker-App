@@ -4,7 +4,7 @@ import { Text, Surface } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useExpenses } from '../context/ExpenseContext';
 
-// --- NEW: Import the Compare Component ---
+// --- Import the Compare Component ---
 import Compare from '../components/Compare';
 
 const CATEGORIES = ['Food', 'Travel', 'Bills', 'Shopping', 'Health', 'Other'];
@@ -71,6 +71,8 @@ export default function FilterScreen({ navigation }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
+        
+        {/* Toggle Switch (Filter vs Compare) */}
         <View style={styles.segmentContainer}>
           <TouchableOpacity onPress={() => setActiveTab('Filter')} style={[styles.segmentBtn, activeTab === 'Filter' && styles.activeSegment]}>
             <Text style={[styles.segmentText, activeTab === 'Filter' && styles.activeSegmentText]}>Filter</Text>
@@ -79,6 +81,7 @@ export default function FilterScreen({ navigation }) {
             <Text style={[styles.segmentText, activeTab === 'Compare' && styles.activeSegmentText]}>Compare</Text>
           </TouchableOpacity>
         </View>
+        
         <View style={{ width: 40 }} /> 
       </View>
 
@@ -86,7 +89,7 @@ export default function FilterScreen({ navigation }) {
         {activeTab === 'Filter' ? (
             renderFilterView()
         ) : (
-            // --- NEW: Using the Component ---
+            // --- The Compare Component ---
             <Compare expenses={expenses} />
         )}
       </View>
@@ -99,18 +102,24 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, paddingTop: 10, marginBottom: 10 },
   backBtn: { padding: 10 },
   backText: { fontSize: 24, color: '#333' },
+  
   segmentContainer: { flexDirection: 'row', backgroundColor: '#eee', borderRadius: 20, padding: 4 },
   segmentBtn: { paddingVertical: 6, paddingHorizontal: 20, borderRadius: 16 },
   activeSegment: { backgroundColor: '#fff', elevation: 2 },
   segmentText: { fontWeight: '600', color: '#999' },
   activeSegmentText: { color: '#1A1A1A' },
-  content: { flex: 1, paddingHorizontal: 24 }, // Consistent padding
+  
+  content: { flex: 1, paddingHorizontal: 24 }, 
   sectionTitle: { fontSize: 14, fontWeight: 'bold', color: '#888', marginBottom: 15, marginTop: 10, textTransform: 'uppercase' },
+  
   chipContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
   chip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, borderColor: '#eee', backgroundColor: '#fff' },
   activeChip: { backgroundColor: '#1A1A1A', borderColor: '#1A1A1A' },
   chipText: { fontSize: 13, fontWeight: '600', color: '#555' },
   activeChipText: { color: '#fff' },
+  inactiveChip: { backgroundColor: '#fff' },
+  inactiveChipText: { color: '#555' },
+  
   card: { backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 10 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   itemTitle: { fontSize: 16, fontWeight: '600', color: '#333' },
