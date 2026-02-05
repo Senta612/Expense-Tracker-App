@@ -1,50 +1,78 @@
-# Welcome to your Expo app 👋
+# 💸 Expense Tracker - React Native Mobile App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A professional, aesthetic, and interactive mobile application built with **React Native (Expo)** to help users manage their daily expenses with ease. Features include interactive charts, custom payment modes, and spending analysis.
 
-## Get started
+---
 
-1. Install dependencies
+## 🚀 Download & Test (Android)
 
+You can download the latest version of the app directly to your Android device:
+
+👉 **[Download APK v1.0](https://expo.dev/artifacts/eas/7K8yjgQhgLGRwbNDNZwHib.apk)**
+
+---
+
+## ✨ Key Features
+
+* **📊 Visual Spending Analysis:** Interactive Donut charts using `react-native-gifted-charts` that let you tap slices to see details.
+* **🔍 Smart Sorting & Filtering:** * Filter by Day, Week, Month, or All.
+    * Sort by Recent, Oldest, Highest Amount, or Lowest Amount.
+* **🗓️ Compare Tool:** Analyze and compare spending between two specific dates to track financial habits.
+* **💳 Custom Payment Modes:** Supports UPI (with app selection), Cash, and Card.
+* **🌓 Aesthetic UI:** High-contrast, minimalist design for maximum readability and a premium feel.
+* **💾 Persistent Storage:** All your data stays on your device using `AsyncStorage`.
+
+---
+
+## 🛠️ Tech Stack
+
+* **Framework:** React Native (Expo)
+* **Navigation:** React Navigation (Stack)
+* **UI Components:** React Native Paper
+* **Charts:** React Native Gifted Charts
+* **Storage:** AsyncStorage
+* **Icons:** Material Community Icons
+
+---
+
+## 📸 Screenshots
+
+> **Note:** Add your app screenshots to an `assets/screenshots` folder and link them here to make your profile look even better!
+
+| Home Screen | Visual Stats | Add Expense |
+| :---: | :---: | :---: |
+| ![Home](https://via.placeholder.com/200x400?text=Home+Screen) | ![Stats](https://via.placeholder.com/200x400?text=Visual+Charts) | ![Add](https://via.placeholder.com/200x400?text=Add+Expense) |
+
+---
+
+## ⚙️ Installation (For Developers)
+
+1. **Clone the repository:**
    ```bash
-   npm install
-   ```
+   git clone [https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git)
 
-2. Start the app
 
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+   ## 📦 Install Dependencies
 
 ```bash
-npm run reset-project
-```
+npm install
+▶️ Start the Development Server
+npx expo start
+👤 Author
+Parthiv Senta
+IT Student
+Enrollment No: 220130116059
+IT Department
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+📄 License
+This project is open-source and available under the MIT License.
 
-## Learn more
 
-To learn more about developing your project with Expo, look at the following resources:
+That’s it.  
+If you want:
+- a **full README.md structure**
+- **project description**
+- **features / screenshots / badges**
+- or **Expo + React Native–specific sections**
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+say it plainly and I’ll do it properly.
