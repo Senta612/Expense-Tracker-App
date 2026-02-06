@@ -13,6 +13,7 @@ import StatsScreen from './src/screens/StatsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import FilterScreen from './src/screens/FilterScreen';
 import CustomAlert from './src/components/CustomAlert';
+import UpdateModal from './src/components/UpdateModal';
 
 const Stack = createNativeStackNavigator();
 
@@ -70,6 +71,7 @@ export default function App() {
             </Stack.Navigator>
           </NavigationContainer>
           <CustomAlert />
+          <UpdateModal />
         </SafeAreaProvider>
       </PaperProvider>
     </ExpenseProvider>

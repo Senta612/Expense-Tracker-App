@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { useColorScheme } from 'react-native'; // Detect System Theme
+import { useColorScheme } from 'react-native'; 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ExpenseContext = createContext();
@@ -9,10 +9,10 @@ export const ExpenseProvider = ({ children }) => {
   const systemScheme = useColorScheme(); 
   const [themeMode, setThemeMode] = useState('system'); // 'light', 'dark', 'system'
   
-  // The Active Mode (Actual visual look)
+  // Determine if Dark Mode is active
   const isDark = themeMode === 'system' ? systemScheme === 'dark' : themeMode === 'dark';
 
-  // PROFESSIONAL COLOR PALETTE 🎨
+  // 🎨 PROFESSIONAL COLOR PALETTE
   const colors = isDark ? {
     // DARK MODE
     background: '#121212',
@@ -43,25 +43,30 @@ export const ExpenseProvider = ({ children }) => {
     icon: '#1A1A1A'
   };
 
-  // --- 2. DATA STATE ---
+  // --- 2. CORE DATA STATE ---
   const [expenses, setExpenses] = useState([]);
   const [username, setUsername] = useState('User');
   const [currency, setCurrency] = useState('₹');
   const [budget, setBudget] = useState('0');
-  
-  // Custom Alert State
-  const [alertConfig, setAlertConfig] = useState({ visible: false, title: '', msg: '', onConfirm: null });
 
-  // Lists
+  // --- 3. UI STATE (Alerts & Updates) ---
+  const [alertConfig, setAlertConfig] = useState({ visible: false, title: '', msg: '', onConfirm: null });
+  const [updateAvailable, setUpdateAvailable] = useState(null);
+
+  // --- 4. LISTS STATE ---
   const [categories, setCategories] = useState(['Food', 'Travel', 'Bills', 'Shopping', 'Health', 'Other']);
   const [paymentModes, setPaymentModes] = useState(['UPI', 'Cash', 'Card']);
   const [upiApps, setUpiApps] = useState(['GPay', 'PhonePe', 'Paytm']); 
 
-  // --- 3. LOAD DATA ---
-  useEffect(() => { loadData(); }, []);
+  // --- 5. INITIAL LOAD ---
+  useEffect(() => {
+    loadData();
+    checkForUpdate();
+  }, []);
 
   const loadData = async () => {
     try {
+      // Load Core Data
       const storedExpenses = await AsyncStorage.getItem('expenses');
       if (storedExpenses) setExpenses(JSON.parse(storedExpenses));
 
@@ -74,7 +79,8 @@ export const ExpenseProvider = ({ children }) => {
       const storedBudget = await AsyncStorage.getItem('budget');
       if (storedBudget) setBudget(storedBudget);
 
-      const storedTheme = await AsyncStorage.getItem('themeMode'); // Load Theme
+      // Load Settings
+      const storedTheme = await AsyncStorage.getItem('themeMode');
       if (storedTheme) setThemeMode(storedTheme);
 
       const storedCats = await AsyncStorage.getItem('categories');
@@ -86,18 +92,41 @@ export const ExpenseProvider = ({ children }) => {
       const storedUpi = await AsyncStorage.getItem('upiApps');
       if (storedUpi) setUpiApps(JSON.parse(storedUpi));
 
-    } catch (e) { console.error("Failed to load data", e); }
+    } catch (e) {
+      console.error("Failed to load data", e);
+    }
   };
 
-  // --- 4. ACTIONS ---
-  
-  // Theme Action
+  // --- 6. UPDATE CHECKER LOGIC 🚀 ---
+  const CURRENT_APP_VERSION = "1.0.0"; // <--- UPDATE THIS BEFORE RELEASING NEW APK
+  // TODO: Replace with your actual GitHub Raw URL
+  const UPDATE_API_URL = "https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO/main/version.json"; 
+
+  const checkForUpdate = async () => {
+    try {
+      // Skip check if no URL is set (development mode)
+      if (UPDATE_API_URL.includes("YOUR_GITHUB_USER")) return;
+
+      const response = await fetch(UPDATE_API_URL);
+      const data = await response.json();
+
+      if (data.version !== CURRENT_APP_VERSION) {
+        setUpdateAvailable(data);
+      }
+    } catch (e) {
+      console.log("Update check failed (Offline or Invalid URL)", e);
+    }
+  };
+
+  // --- 7. ACTION FUNCTIONS ---
+
+  // Theme
   const updateTheme = async (mode) => {
     setThemeMode(mode);
     await AsyncStorage.setItem('themeMode', mode);
   };
 
-  // Alert Action (Replaces Alert.alert)
+  // Custom Alert
   const showAlert = (title, msg, onConfirm = null) => {
     setAlertConfig({ visible: true, title, msg, onConfirm });
   };
@@ -105,11 +134,12 @@ export const ExpenseProvider = ({ children }) => {
     setAlertConfig({ ...alertConfig, visible: false });
   };
 
-  // ... (Existing Actions: updateBudget, updateCurrency, etc. - KEPT SAME)
+  // Core Data Setters
   const updateBudget = async (amount) => { setBudget(amount); await AsyncStorage.setItem('budget', amount); };
   const updateCurrency = async (symbol) => { setCurrency(symbol); await AsyncStorage.setItem('currency', symbol); };
   const updateUsername = async (name) => { setUsername(name); await AsyncStorage.setItem('username', name); };
-  
+
+  // Expense CRUD
   const addExpense = async (newExpense) => {
     const updated = [newExpense, ...expenses];
     setExpenses(updated);
@@ -128,8 +158,10 @@ export const ExpenseProvider = ({ children }) => {
   const clearAllData = async () => {
     setExpenses([]);
     await AsyncStorage.removeItem('expenses');
+    // Optional: Reset other settings if needed, but usually we keep profile info
   };
-  
+
+  // List Management (Categories, Modes, Apps)
   const addCategory = async (cat) => { if(!categories.includes(cat)) { const u=[...categories, cat]; setCategories(u); await AsyncStorage.setItem('categories', JSON.stringify(u)); }};
   const removeCategory = async (cat) => { const u=categories.filter(c=>c!==cat); setCategories(u); await AsyncStorage.setItem('categories', JSON.stringify(u)); };
   
@@ -139,6 +171,7 @@ export const ExpenseProvider = ({ children }) => {
   const addUpiApp = async (a) => { if(!upiApps.includes(a)) { const u=[...upiApps, a]; setUpiApps(u); await AsyncStorage.setItem('upiApps', JSON.stringify(u)); }};
   const removeUpiApp = async (a) => { const u=upiApps.filter(x=>x!==a); setUpiApps(u); await AsyncStorage.setItem('upiApps', JSON.stringify(u)); };
 
+  // Helper: Filter Logic
   const getFilteredExpenses = (timeRange) => {
     if (!timeRange || timeRange === 'All') return expenses;
     const now = new Date();
@@ -150,19 +183,33 @@ export const ExpenseProvider = ({ children }) => {
     return expenses.filter(e => new Date(e.date) >= cutoff);
   };
 
-  const getTotalSpent = () => expenses.reduce((sum, item) => sum + item.amount, 0);
+  // Helper: Total Spent
+  const getTotalSpent = () => {
+    return expenses.reduce((sum, item) => sum + item.amount, 0);
+  };
 
   return (
     <ExpenseContext.Provider value={{ 
-      expenses, username, currency, budget, 
-      themeMode, isDark, colors, updateTheme, // <--- NEW THEME EXPORTS
-      alertConfig, showAlert, closeAlert, // <--- NEW ALERT EXPORTS
+      // Data
+      expenses, username, currency, budget,
+      categories, paymentModes, upiApps,
+
+      // Theme
+      themeMode, isDark, colors, updateTheme,
+
+      // UI (Alerts & Updates)
+      alertConfig, showAlert, closeAlert,
+      updateAvailable, setUpdateAvailable,
+
+      // Actions
       updateUsername, updateCurrency, updateBudget,
       addExpense, deleteExpense, editExpense, clearAllData,
-      getFilteredExpenses, getTotalSpent,
-      categories, addCategory, removeCategory,
-      paymentModes, addPaymentMode, removePaymentMode,
-      upiApps, addUpiApp, removeUpiApp
+      addCategory, removeCategory,
+      addPaymentMode, removePaymentMode,
+      addUpiApp, removeUpiApp,
+
+      // Helpers
+      getFilteredExpenses, getTotalSpent
     }}>
       {children}
     </ExpenseContext.Provider>

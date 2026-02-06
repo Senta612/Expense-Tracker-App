@@ -1,0 +1,10 @@
+{
+  "version": "2.0.0",
+  "downloadUrl": "https://github.com/your-username/your-repo/releases/download/v2.0/app-release.apk",
+  "whatsNew": [
+    "🌙 Dark Mode Support",
+    "✨ Smooth Animations",
+    "📊 New Interactive Charts",
+    "🐞 Fixed Wallet Budget bug"
+  ]
+}
