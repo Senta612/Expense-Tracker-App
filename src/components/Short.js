@@ -1,123 +1,78 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Text, IconButton } from 'react-native-paper';
+import { useExpenses } from '../context/ExpenseContext'; // <--- Import Context
 
-export default function Short({ filter, setFilter, onSortPress, activeSort }) {
-  const tabs = ['Day', 'Week', 'Month', 'All'];
+export default function Short({ filter, setFilter, activeSort, onSortPress }) {
+  const { colors } = useExpenses(); // <--- Get Theme Colors
 
-  const getSortIcon = () => {
-    if (activeSort === 'HIGH') return 'sort-numeric-descending'; 
-    if (activeSort === 'LOW') return 'sort-numeric-ascending';   
-    if (activeSort === 'OLD') return 'calendar-arrow-right';    
-    return 'sort-calendar-descending'; 
-  };
-
-  const isSortActive = activeSort !== 'RECENT';
+  const filters = ['All', 'Today', 'Week', 'Month', 'Year'];
 
   return (
     <View style={styles.container}>
-      
-      {/* LEFT: Tabs */}
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false} 
-        contentContainerStyle={styles.scrollContent}
-        style={styles.scrollFlex}
+        contentContainerStyle={styles.scroll}
       >
-        {tabs.map((t) => (
-          <TouchableOpacity
-            key={t}
-            onPress={() => setFilter(t)}
-            style={[styles.tab, filter === t ? styles.activeTab : styles.inactiveTab]}
-          >
-            <Text style={[styles.text, filter === t ? styles.activeText : styles.inactiveText]}>
-              {t}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {/* Sort Button (Small Icon) */}
+        <TouchableOpacity 
+            onPress={onSortPress} 
+            style={[
+                styles.sortBtn, 
+                { backgroundColor: colors.surface, borderColor: colors.border } // Theme Colors
+            ]}
+        >
+            <IconButton icon="sort" size={20} iconColor={colors.text} style={{ margin: 0 }} />
+        </TouchableOpacity>
+
+        <View style={styles.divider} />
+
+        {/* Filter Chips */}
+        {filters.map((item) => {
+          const isActive = filter === item;
+          return (
+            <TouchableOpacity
+              key={item}
+              onPress={() => setFilter(item)}
+              style={[
+                styles.chip,
+                isActive 
+                    ? { backgroundColor: colors.primary, borderColor: colors.primary } // Active Theme
+                    : { backgroundColor: colors.surface, borderColor: colors.border }  // Inactive Theme
+              ]}
+            >
+              <Text style={[
+                  styles.text, 
+                  { color: isActive ? '#FFF' : colors.textSec, fontWeight: isActive ? 'bold' : '500' }
+              ]}>
+                {item}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
-
-      {/* RIGHT: Sort Button */}
-      <TouchableOpacity 
-        onPress={onSortPress} 
-        style={[styles.sortBtn, isSortActive ? styles.activeSortBtn : styles.inactiveSortBtn]}
-      >
-        <IconButton 
-          icon={getSortIcon()} 
-          size={20} 
-          iconColor={isSortActive ? '#fff' : '#000'} 
-          style={{ margin: 0 }}
-        />
-        {/* Added Label for visibility */}
-        {!isSortActive && <Text style={styles.sortLabel}>Sort</Text>}
-      </TouchableOpacity>
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 15,
-    marginTop: 10,
-  },
-  scrollFlex: { flex: 1 },
-  scrollContent: { paddingRight: 15, alignItems: 'center' },
-  
-  // --- HIGH VISIBILITY TABS ---
-  tab: {
-    marginRight: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 12,
-    borderWidth: 1, // Add border to define shape
-  },
-
-  // Active: Black Background
-  activeTab: { 
-    backgroundColor: '#000', 
-    borderColor: '#000' 
-  },
-
-  // Inactive: White Background + Grey Border (POPS OUT)
-  inactiveTab: { 
-    backgroundColor: '#FFF', 
-    borderColor: '#E0E0E0',
-    elevation: 1, // Slight shadow to lift it off the page
-  },
-  
-  // --- TEXT VISIBILITY ---
-  text: { fontSize: 14, fontWeight: 'bold' }, // Increased Size + Bold
-  activeText: { color: '#FFF' },
-  inactiveText: { color: '#000' }, // PITCH BLACK TEXT
-
-  // --- SORT BUTTON ---
+  container: { marginBottom: 15 },
+  scroll: { paddingHorizontal: 24, alignItems: 'center' },
   sortBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12, // Wider
+    width: 40, height: 40,
     borderRadius: 12,
+    justifyContent: 'center', alignItems: 'center',
     borderWidth: 1,
-    marginLeft: 5
+    marginRight: 10
   },
-  inactiveSortBtn: {
-    backgroundColor: '#FFF',
-    borderColor: '#E0E0E0',
-    elevation: 1,
+  divider: { width: 1, height: 20, backgroundColor: '#ddd', marginRight: 10 },
+  chip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 14,
+    marginRight: 8,
+    borderWidth: 1,
   },
-  activeSortBtn: {
-    backgroundColor: '#2575fc',
-    borderColor: '#2575fc',
-  },
-  sortLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#000', // Black text
-    marginLeft: -4,
-    marginRight: 4
-  }
+  text: { fontSize: 13 }
 });

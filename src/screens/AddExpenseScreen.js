@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, TextInput, Platform, KeyboardAvoidingView } from 'react-native';
-import { Button, Text, Modal, Portal, Provider } from 'react-native-paper'; // Import Portal/Modal
+import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, Platform, KeyboardAvoidingView } from 'react-native';
+import { Button, Text, Modal, Portal, IconButton } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useExpenses } from '../context/ExpenseContext';
 
 export default function AddExpenseScreen({ navigation, route }) {
-  const { addExpense, editExpense, categories, paymentModes, upiApps, currency, budget, updateBudget, getTotalSpent } = useExpenses();
+  const { addExpense, editExpense, categories, paymentModes, upiApps, currency, budget, updateBudget, getTotalSpent, colors, showAlert } = useExpenses();
   
   const existingExpense = route.params?.expense;
   const isEditing = !!existingExpense;
@@ -20,7 +20,7 @@ export default function AddExpenseScreen({ navigation, route }) {
   const [paymentApp, setPaymentApp] = useState(null);
   const [showPicker, setShowPicker] = useState(false);
 
-  // --- NEW: Budget Modal State ---
+  // Budget Modal
   const [showBudgetModal, setShowBudgetModal] = useState(false);
   const [tempBudget, setTempBudget] = useState(budget);
 
@@ -37,7 +37,7 @@ export default function AddExpenseScreen({ navigation, route }) {
   }, [existingExpense]);
 
   const handleSave = () => {
-    if (!name || !amount) { Alert.alert("Missing Info", "Please enter details."); return; }
+    if (!name || !amount) { showAlert("Missing Info", "Please enter a title and amount."); return; }
     const payload = {
       id: existingExpense ? existingExpense.id : Date.now().toString(),
       name,
@@ -58,81 +58,81 @@ export default function AddExpenseScreen({ navigation, route }) {
   };
 
   const scrollViewRef = useRef();
-  
-  // --- CALCULATION ---
   const currentTotal = getTotalSpent();
   const currentBudget = parseFloat(budget) || 0;
   const expenseAmount = parseFloat(amount) || 0;
   const remaining = currentBudget - currentTotal;
   const remainingAfter = remaining - expenseAmount;
 
+  const Label = ({ icon, text }) => (
+    <View style={styles.labelRow}>
+        <IconButton icon={icon} size={18} iconColor={colors.textSec} style={{margin:0, marginRight: 5}} />
+        <Text style={[styles.label, { color: colors.textSec }]}>{text}</Text>
+    </View>
+  );
+
   return (
-    <Provider>
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'left', 'right']}>
       
-      {/* --- BUDGET MODAL --- */}
       <Portal>
-          <Modal visible={showBudgetModal} onDismiss={() => setShowBudgetModal(false)} contentContainerStyle={styles.modalContainer}>
-              <Text style={styles.modalTitle}>Set Monthly Wallet</Text>
+          <Modal visible={showBudgetModal} onDismiss={() => setShowBudgetModal(false)} contentContainerStyle={[styles.modalContainer, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Set Monthly Wallet</Text>
               <TextInput 
                   value={tempBudget} 
                   onChangeText={setTempBudget} 
                   keyboardType="numeric"
-                  style={styles.modalInput}
+                  style={[styles.modalInput, { backgroundColor: colors.inputBg, color: colors.text }]}
                   placeholder="e.g. 10000"
+                  placeholderTextColor={colors.textSec}
               />
-              <Button mode="contained" onPress={handleSaveBudget} buttonColor="#1A1A1A">Save Limit</Button>
+              <Button mode="contained" onPress={handleSaveBudget} buttonColor={colors.primary} textColor="#FFF">Save Limit</Button>
           </Modal>
       </Portal>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView ref={scrollViewRef} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           
-          {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-              <Text style={styles.backText}>✕</Text>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
+              <IconButton icon="close" size={24} iconColor={colors.text} style={{margin: 0}} />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>{isEditing ? 'Edit' : 'Add'} Expense</Text>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>{isEditing ? 'Edit' : 'Add'} Expense</Text>
             
-            {/* --- NEW: WALLET BUTTON --- */}
-            <TouchableOpacity onPress={() => setShowBudgetModal(true)} style={styles.walletBtn}>
-                <Text style={styles.walletBtnText}>Wallet: {currency}{budget}</Text>
+            <TouchableOpacity onPress={() => setShowBudgetModal(true)} style={[styles.walletBtn, { backgroundColor: colors.chip }]}>
+                <IconButton icon="wallet-outline" size={16} iconColor={colors.text} style={{margin: 0, marginRight: 4}} />
+                <Text style={[styles.walletBtnText, { color: colors.text }]}>{currency}{budget}</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Amount Section */}
           <View style={styles.amountContainer}>
-            <Text style={styles.currencySymbol}>{currency}</Text>
+            <Text style={[styles.currencySymbol, { color: colors.text }]}>{currency}</Text>
             <TextInput
               value={amount}
               onChangeText={setAmount}
               keyboardType="numeric"
               placeholder="0"
-              placeholderTextColor="#ddd"
-              style={styles.amountInput}
+              placeholderTextColor={colors.textSec}
+              style={[styles.amountInput, { color: colors.text }]}
             />
           </View>
           
-          {/* --- NEW: LIVE CALCULATION --- */}
           <View style={styles.liveCalc}>
-            <Text style={{color: '#888'}}>Available: {currency}{remaining}</Text>
-            <Text style={{color: '#888'}}> → </Text>
-            <Text style={{color: remainingAfter < 0 ? '#FF5252' : '#00C853', fontWeight: 'bold'}}>
+            <Text style={{color: colors.textSec}}>Available: {currency}{remaining}</Text>
+            <Text style={{color: colors.textSec}}> → </Text>
+            <Text style={{color: remainingAfter < 0 ? colors.error : colors.success, fontWeight: 'bold'}}>
                 After: {currency}{remainingAfter}
             </Text>
           </View>
 
-          {/* Form Section */}
-          <View style={styles.formSection}>
-            <Text style={styles.label}>Title</Text>
-            <TextInput style={styles.simpleInput} placeholder="e.g. Starbucks" placeholderTextColor="#999" value={name} onChangeText={setName} />
+          <View style={[styles.formSection, { backgroundColor: colors.surface }]}>
+            <Label icon="format-title" text="Title" />
+            <TextInput style={[styles.simpleInput, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]} placeholder="e.g. Starbucks" placeholderTextColor={colors.textSec} value={name} onChangeText={setName} />
 
-            <Text style={styles.label}>Payment Method</Text>
+            <Label icon="credit-card-outline" text="Payment Method" />
             <View style={styles.chipContainer}>
               {paymentModes.map((mode) => (
-                <TouchableOpacity key={mode} onPress={() => { setPaymentMode(mode); setPaymentApp(null); }} style={[styles.chip, paymentMode === mode ? styles.activeChip : styles.inactiveChip]}>
-                  <Text style={[styles.chipText, paymentMode === mode ? styles.activeChipText : styles.inactiveChipText]}>{mode}</Text>
+                <TouchableOpacity key={mode} onPress={() => { setPaymentMode(mode); setPaymentApp(null); }} style={[styles.chip, paymentMode === mode ? { backgroundColor: colors.primary } : { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border }]}>
+                  <Text style={[styles.chipText, paymentMode === mode ? { color: '#FFF' } : { color: colors.text }]}>{mode}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -141,80 +141,66 @@ export default function AddExpenseScreen({ navigation, route }) {
               <View style={styles.subOptionContainer}>
                 <View style={styles.chipContainer}>
                   {upiApps.map((app) => (
-                    <TouchableOpacity key={app} onPress={() => setPaymentApp(app === paymentApp ? null : app)} style={[styles.miniChip, paymentApp === app ? styles.activeMiniChip : styles.inactiveMiniChip]}>
-                      <Text style={[styles.miniChipText, paymentApp === app ? styles.activeMiniChipText : styles.inactiveMiniChipText]}>{app}</Text>
+                    <TouchableOpacity key={app} onPress={() => setPaymentApp(app === paymentApp ? null : app)} style={[styles.miniChip, paymentApp === app ? { backgroundColor: colors.chip, borderColor: colors.primary } : { borderColor: colors.border }]}>
+                      <Text style={[styles.miniChipText, paymentApp === app ? { color: colors.text, fontWeight: 'bold' } : { color: colors.textSec }]}>{app}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               </View>
             )}
 
-            <Text style={styles.label}>Category</Text>
+            <Label icon="shape-outline" text="Category" />
             <View style={styles.chipContainer}>
               {categories.map((cat) => (
-                <TouchableOpacity key={cat} onPress={() => setCategory(cat)} style={[styles.chip, category === cat ? styles.activeChip : styles.inactiveChip]}>
-                  <Text style={[styles.chipText, category === cat ? styles.activeChipText : styles.inactiveChipText]}>{cat}</Text>
+                <TouchableOpacity key={cat} onPress={() => setCategory(cat)} style={[styles.chip, category === cat ? { backgroundColor: colors.primary } : { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border }]}>
+                  <Text style={[styles.chipText, category === cat ? { color: '#FFF' } : { color: colors.text }]}>{cat}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={styles.label}>Date</Text>
-            <TouchableOpacity onPress={() => setShowPicker(true)} style={styles.dateRow}>
-              <Text style={styles.dateText}>{date.toDateString()}</Text>
-              <Text style={styles.calendarIcon}>📅</Text>
+            <Label icon="calendar-month-outline" text="Date" />
+            <TouchableOpacity onPress={() => setShowPicker(true)} style={[styles.dateRow, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
+              <Text style={[styles.dateText, { color: colors.text }]}>{date.toDateString()}</Text>
+              <IconButton icon="calendar" size={20} iconColor={colors.text} />
             </TouchableOpacity>
             {showPicker && (<DateTimePicker value={date} mode="date" display="default" onChange={(e, d) => { setShowPicker(false); if (d) setDate(d); }} />)}
 
-            <Text style={styles.label}>Description (Optional)</Text>
-            <TextInput style={[styles.simpleInput, { height: 60, textAlignVertical: 'top' }]} placeholder="Add notes..." placeholderTextColor="#999" value={description} onChangeText={setDescription} multiline onFocus={() => setTimeout(() => scrollViewRef.current.scrollToEnd({ animated: true }), 100)} />
+            <Label icon="note-text-outline" text="Description (Optional)" />
+            <TextInput style={[styles.simpleInput, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border, height: 60, textAlignVertical: 'top' }]} placeholder="Add notes..." placeholderTextColor={colors.textSec} value={description} onChangeText={setDescription} multiline onFocus={() => setTimeout(() => scrollViewRef.current.scrollToEnd({ animated: true }), 100)} />
 
-            <Button mode="contained" onPress={handleSave} style={styles.saveBtn} textColor="#FFF" labelStyle={{ fontSize: 16, fontWeight: 'bold' }}>Save</Button>
+            <Button mode="contained" onPress={handleSave} style={[styles.saveBtn, { backgroundColor: colors.primary }]} textColor="#FFF" labelStyle={{ fontSize: 16, fontWeight: 'bold' }}>Save Expense</Button>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
-    </Provider>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
   scrollContent: { flexGrow: 1, paddingBottom: 20 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 5 },
-  backBtn: { padding: 10 },
-  backText: { fontSize: 22, color: '#333' },
-  headerTitle: { fontSize: 16, fontWeight: '600', color: '#333' },
-  
-  walletBtn: { backgroundColor: '#F3F4F6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  walletBtnText: { fontSize: 12, fontWeight: 'bold', color: '#1A1A1A' },
-
-  amountContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 5, marginBottom: 5 },
-  currencySymbol: { fontSize: 32, fontWeight: 'bold', color: '#1A1A1A', marginRight: 5 },
-  amountInput: { fontSize: 32, fontWeight: 'bold', color: '#1A1A1A', minWidth: 80, textAlign: 'center' },
-  
-  liveCalc: { flexDirection: 'row', justifyContent: 'center', marginBottom: 15 },
-
-  formSection: { backgroundColor: '#F5F7FA', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, flex: 1 },
-  label: { fontSize: 13, fontWeight: 'bold', color: '#888', marginBottom: 8, marginTop: 12 },
-  simpleInput: { backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, fontSize: 15, color: '#000', borderWidth: 1, borderColor: '#eee', marginBottom: 5 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 15, paddingTop: 5 },
+  iconBtn: { padding: 5 },
+  headerTitle: { fontSize: 18, fontWeight: '700' },
+  walletBtn: { flexDirection: 'row', alignItems: 'center', paddingRight: 12, paddingLeft: 0, borderRadius: 20 },
+  walletBtnText: { fontSize: 13, fontWeight: 'bold' },
+  amountContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 10, marginBottom: 5 },
+  currencySymbol: { fontSize: 32, fontWeight: 'bold', marginRight: 5 },
+  amountInput: { fontSize: 32, fontWeight: 'bold', minWidth: 80, textAlign: 'center' },
+  liveCalc: { flexDirection: 'row', justifyContent: 'center', marginBottom: 20 },
+  formSection: { borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, flex: 1 },
+  labelRow: { flexDirection: 'row', alignItems: 'center', marginTop: 15, marginBottom: 5 },
+  label: { fontSize: 13, fontWeight: 'bold', textTransform: 'uppercase' },
+  simpleInput: { borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, borderWidth: 1, marginBottom: 5 },
   chipContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, marginBottom: 4 },
-  activeChip: { backgroundColor: '#1A1A1A' },
-  inactiveChip: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#eee' },
+  chip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 24, marginBottom: 4 },
   chipText: { fontSize: 13, fontWeight: '600' },
-  activeChipText: { color: '#fff' },
-  inactiveChipText: { color: '#555' },
   subOptionContainer: { marginTop: 5, marginBottom: 5 },
-  miniChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, borderColor: '#ddd' },
-  activeMiniChip: { backgroundColor: '#e0e0e0', borderColor: '#ccc' },
-  inactiveMiniChip: { backgroundColor: 'transparent' },
-  activeMiniChipText: { color: '#000', fontSize: 12, fontWeight: 'bold' },
-  inactiveMiniChipText: { color: '#666', fontSize: 12 },
-  dateRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#eee' },
-  dateText: { fontSize: 15, color: '#1A1A1A', fontWeight: '500' },
-  saveBtn: { marginTop: 'auto', paddingVertical: 4, backgroundColor: '#1A1A1A', borderRadius: 16, elevation: 0, marginBottom: 10 },
-  
-  modalContainer: { backgroundColor: 'white', padding: 20, margin: 40, borderRadius: 12 },
+  miniChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1 },
+  miniChipText: { fontSize: 12 },
+  dateRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderRadius: 12, borderWidth: 1 },
+  dateText: { fontSize: 15, fontWeight: '500' },
+  saveBtn: { marginTop: 30, paddingVertical: 6, borderRadius: 16, elevation: 2, marginBottom: 20 },
+  modalContainer: { padding: 20, margin: 40, borderRadius: 12 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
-  modalInput: { backgroundColor: '#f0f0f0', marginBottom: 15, fontSize: 18, padding: 10, borderRadius: 8 }
+  modalInput: { marginBottom: 15, fontSize: 18, padding: 10, borderRadius: 8 }
 });

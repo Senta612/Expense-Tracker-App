@@ -6,12 +6,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 
 // Import our custom files
-import { ExpenseProvider } from './src/context/ExpenseContext'; 
-import HomeScreen from './src/screens/HomeScreen';         
+import { ExpenseProvider } from './src/context/ExpenseContext';
+import HomeScreen from './src/screens/HomeScreen';
 import AddExpenseScreen from './src/screens/AddExpenseScreen';
 import StatsScreen from './src/screens/StatsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import FilterScreen from './src/screens/FilterScreen';
+import CustomAlert from './src/components/CustomAlert';
 
 const Stack = createNativeStackNavigator();
 
@@ -50,25 +51,25 @@ export default function App() {
               />
 
               <Stack.Screen
-               name="Stats"
-               component={StatsScreen} 
-               options={{ headerShown: false }} 
-               />
-
-               <Stack.Screen 
-               name="Settings"
-                component={SettingsScreen} 
+                name="Stats"
+                component={StatsScreen}
                 options={{ headerShown: false }}
-                />
+              />
 
-                <Stack.Screen
-                 name="Filter" 
-                 component={FilterScreen} 
-                 options={{ headerShown: false }}
-                 />
+              <Stack.Screen
+                name="Settings"
+                component={SettingsScreen}
+                options={{ headerShown: false }}
+              />
+
+              <Stack.Screen
+                name="Filter"
+                component={FilterScreen}
+                options={{ headerShown: false }}
+              />
             </Stack.Navigator>
           </NavigationContainer>
-
+          <CustomAlert />
         </SafeAreaProvider>
       </PaperProvider>
     </ExpenseProvider>

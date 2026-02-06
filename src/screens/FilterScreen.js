@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, FlatList, Platform } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
 import { Text, Surface, IconButton } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker'; 
 import { useExpenses } from '../context/ExpenseContext';
-
 import Compare from '../components/Compare';
 
+const CATEGORIES = ['Food', 'Travel', 'Bills', 'Shopping', 'Health', 'Other'];
+
 export default function FilterScreen({ navigation }) {
-  // 1. Get Dynamic Categories from Context
-  const { expenses, categories } = useExpenses(); 
+  // 1. Get Colors & Expenses
+  const { expenses, colors } = useExpenses(); 
 
   const [activeTab, setActiveTab] = useState('Filter'); 
   const [selectedCats, setSelectedCats] = useState([]);
 
-  // Date Range States
+  // Date Range
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [showStartPicker, setShowStartPicker] = useState(false);
@@ -28,150 +29,125 @@ export default function FilterScreen({ navigation }) {
     }
   };
 
-  const clearDates = () => {
-    setStartDate(null);
-    setEndDate(null);
-  };
+  const clearDates = () => { setStartDate(null); setEndDate(null); };
 
-  // --- Render Filter View (List) ---
   const renderFilterView = () => {
-    // 1. FILTER LOGIC
+    // FILTER LOGIC
     const filteredData = expenses.filter(item => {
       const itemDate = new Date(item.date);
-      itemDate.setHours(0, 0, 0, 0); // Normalize time
-
-      // Check 1: Category
+      itemDate.setHours(0, 0, 0, 0); 
       const matchCategory = selectedCats.length === 0 || selectedCats.includes(item.category);
-      
-      // Check 2: Date Range
       let matchDate = true;
       if (startDate) {
-        const start = new Date(startDate);
-        start.setHours(0,0,0,0);
+        const start = new Date(startDate); start.setHours(0,0,0,0);
         if (itemDate < start) matchDate = false;
       }
       if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23,59,59,999); 
+        const end = new Date(endDate); end.setHours(23,59,59,999);
         if (itemDate > end) matchDate = false;
       }
-
       return matchCategory && matchDate;
     });
 
-    // 2. Calculate Total
     const totalAmount = filteredData.reduce((sum, item) => sum + item.amount, 0);
 
     return (
       <View style={{ flex: 1 }}>
-        
-        {/* --- SECTION 1: Categories (Dynamic) --- */}
-        <Text style={styles.sectionTitle}>Filter by Category</Text>
+        {/* --- SECTION 1: Categories --- */}
+        <Text style={[styles.sectionTitle, { color: colors.textSec }]}>Filter by Category</Text>
         <View style={styles.chipContainer}>
-          {categories.map(cat => (
-            <TouchableOpacity
-              key={cat}
-              onPress={() => toggleCategory(cat)}
-              style={[styles.chip, selectedCats.includes(cat) ? styles.activeChip : styles.inactiveChip]}
-            >
-              <Text style={[styles.chipText, selectedCats.includes(cat) ? styles.activeChipText : styles.inactiveChipText]}>
-                {cat}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {CATEGORIES.map(cat => {
+            const isSelected = selectedCats.includes(cat);
+            return (
+                <TouchableOpacity
+                    key={cat}
+                    onPress={() => toggleCategory(cat)}
+                    style={[
+                        styles.chip, 
+                        isSelected ? { backgroundColor: colors.primary, borderColor: colors.primary } 
+                                   : { backgroundColor: colors.surface, borderColor: colors.border }
+                    ]}
+                >
+                    <Text style={[
+                        styles.chipText, 
+                        isSelected ? { color: '#FFF' } : { color: colors.text }
+                    ]}>{cat}</Text>
+                </TouchableOpacity>
+            );
+          })}
         </View>
 
         {/* --- SECTION 2: Date Range Picker --- */}
-        <View style={styles.dateRow}>
+        <View style={[styles.dateRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <TouchableOpacity onPress={() => setShowStartPicker(true)} style={styles.dateBtn}>
-                <Text style={styles.dateLabel}>From:</Text>
-                <Text style={styles.dateValue}>{startDate ? startDate.toLocaleDateString() : 'Start Date'}</Text>
+                <Text style={[styles.dateLabel, { color: colors.textSec }]}>From:</Text>
+                <Text style={[styles.dateValue, { color: colors.text }]}>{startDate ? startDate.toLocaleDateString() : 'Start Date'}</Text>
             </TouchableOpacity>
 
-            <Text style={{color:'#999'}}>→</Text>
+            <IconButton icon="arrow-right" size={16} iconColor={colors.textSec} />
 
             <TouchableOpacity onPress={() => setShowEndPicker(true)} style={styles.dateBtn}>
-                <Text style={styles.dateLabel}>To:</Text>
-                <Text style={styles.dateValue}>{endDate ? endDate.toLocaleDateString() : 'End Date'}</Text>
+                <Text style={[styles.dateLabel, { color: colors.textSec }]}>To:</Text>
+                <Text style={[styles.dateValue, { color: colors.text }]}>{endDate ? endDate.toLocaleDateString() : 'End Date'}</Text>
             </TouchableOpacity>
 
             {(startDate || endDate) && (
-                <IconButton icon="close-circle" size={20} iconColor="#FF5252" onPress={clearDates} />
+                <IconButton icon="close-circle" size={20} iconColor={colors.error} onPress={clearDates} />
             )}
         </View>
 
-        {/* Date Pickers */}
-        {showStartPicker && (
-            <DateTimePicker
-                value={startDate || new Date()}
-                mode="date"
-                display="default"
-                onChange={(event, date) => {
-                    setShowStartPicker(false);
-                    if (date) setStartDate(date);
-                }}
-            />
-        )}
-        {showEndPicker && (
-            <DateTimePicker
-                value={endDate || new Date()}
-                mode="date"
-                display="default"
-                onChange={(event, date) => {
-                    setShowEndPicker(false);
-                    if (date) setEndDate(date);
-                }}
-            />
-        )}
+        {showStartPicker && (<DateTimePicker value={startDate || new Date()} mode="date" display="default" onChange={(e, d) => { setShowStartPicker(false); if (d) setStartDate(d); }} />)}
+        {showEndPicker && (<DateTimePicker value={endDate || new Date()} mode="date" display="default" onChange={(e, d) => { setShowEndPicker(false); if (d) setEndDate(d); }} />)}
 
-        {/* --- SECTION 3: Total Card (Clean White Style) --- */}
-        <Surface style={styles.totalCard} elevation={2}>
+        {/* --- SECTION 3: Total Card --- */}
+        <Surface style={[styles.totalCard, { backgroundColor: colors.surface, borderColor: colors.border }]} elevation={2}>
             <View>
-                <Text style={styles.totalLabel}>Total Spent</Text>
-                <Text style={styles.filterInfo}>
-                   {selectedCats.length > 0 ? selectedCats.join(', ') : 'All Categories'} 
-                   {startDate || endDate ? ' • Custom Date' : ''}
+                <Text style={[styles.totalLabel, { color: colors.textSec }]}>Total Spent</Text>
+                <Text style={[styles.filterInfo, { color: colors.text }]}>
+                    {selectedCats.length > 0 ? selectedCats.join(', ') : 'All Categories'} 
+                    {startDate || endDate ? ' • Custom Date' : ''}
                 </Text>
             </View>
-            <Text style={styles.totalValue}>₹{totalAmount.toLocaleString('en-IN')}</Text>
+            <Text style={[styles.totalValue, { color: colors.text }]}>₹{totalAmount.toLocaleString('en-IN')}</Text>
         </Surface>
 
         {/* --- SECTION 4: Results List --- */}
-        <Text style={styles.sectionTitle}>Results ({filteredData.length})</Text>
+        <Text style={[styles.sectionTitle, { color: colors.textSec }]}>Results ({filteredData.length})</Text>
         <FlatList
           data={filteredData}
           keyExtractor={item => item.id}
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
-            <Surface style={styles.card} elevation={1}>
+            <Surface style={[styles.card, { backgroundColor: colors.surface }]} elevation={1}>
               <View style={styles.row}>
-                <Text style={styles.itemTitle}>{item.name}</Text>
-                <Text style={styles.itemAmount}>-₹{item.amount}</Text>
+                <Text style={[styles.itemTitle, { color: colors.text }]}>{item.name}</Text>
+                <Text style={[styles.itemAmount, { color: colors.error }]}>-₹{item.amount}</Text>
               </View>
-              <Text style={styles.itemDate}>{new Date(item.date).toLocaleDateString()} • {item.category}</Text>
+              <Text style={[styles.itemDate, { color: colors.textSec }]}>{new Date(item.date).toLocaleDateString()} • {item.category}</Text>
             </Surface>
           )}
-          ListEmptyComponent={<Text style={styles.emptyText}>No expenses found for this filter.</Text>}
+          ListEmptyComponent={<Text style={[styles.emptyText, { color: colors.textSec }]}>No expenses found for this filter.</Text>}
         />
       </View>
     );
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
+            <IconButton icon="arrow-left" size={26} iconColor={colors.text} style={{margin:0}} />
         </TouchableOpacity>
         
-        <View style={styles.segmentContainer}>
-          <TouchableOpacity onPress={() => setActiveTab('Filter')} style={[styles.segmentBtn, activeTab === 'Filter' && styles.activeSegment]}>
-            <Text style={[styles.segmentText, activeTab === 'Filter' && styles.activeSegmentText]}>Filter</Text>
+        {/* Segmented Control */}
+        <View style={[styles.segmentContainer, { backgroundColor: colors.inputBg }]}>
+          <TouchableOpacity onPress={() => setActiveTab('Filter')} style={[styles.segmentBtn, activeTab === 'Filter' && { backgroundColor: colors.surface, elevation: 2 }]}>
+            <Text style={[styles.segmentText, { color: activeTab === 'Filter' ? colors.text : colors.textSec }]}>Filter</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setActiveTab('Compare')} style={[styles.segmentBtn, activeTab === 'Compare' && styles.activeSegment]}>
-            <Text style={[styles.segmentText, activeTab === 'Compare' && styles.activeSegmentText]}>Compare</Text>
+          <TouchableOpacity onPress={() => setActiveTab('Compare')} style={[styles.segmentBtn, activeTab === 'Compare' && { backgroundColor: colors.surface, elevation: 2 }]}>
+            <Text style={[styles.segmentText, { color: activeTab === 'Compare' ? colors.text : colors.textSec }]}>Compare</Text>
           </TouchableOpacity>
         </View>
         
@@ -186,78 +162,35 @@ export default function FilterScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F7FA' },
+  container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, paddingTop: 10, marginBottom: 10 },
-  backBtn: { padding: 10 },
-  backText: { fontSize: 24, color: '#333' },
+  backBtn: { padding: 0 },
   
-  segmentContainer: { flexDirection: 'row', backgroundColor: '#eee', borderRadius: 20, padding: 4 },
+  segmentContainer: { flexDirection: 'row', borderRadius: 20, padding: 4 },
   segmentBtn: { paddingVertical: 6, paddingHorizontal: 20, borderRadius: 16 },
-  activeSegment: { backgroundColor: '#fff', elevation: 2 },
-  segmentText: { fontWeight: '600', color: '#999' },
-  activeSegmentText: { color: '#1A1A1A' },
+  segmentText: { fontWeight: '600' },
   
   content: { flex: 1, paddingHorizontal: 24 }, 
-  sectionTitle: { fontSize: 13, fontWeight: 'bold', color: '#888', marginBottom: 10, marginTop: 10, textTransform: 'uppercase' },
+  sectionTitle: { fontSize: 13, fontWeight: 'bold', marginBottom: 10, marginTop: 10, textTransform: 'uppercase' },
   
   chipContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 15 },
-  chip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, borderColor: '#eee', backgroundColor: '#fff' },
-  activeChip: { backgroundColor: '#1A1A1A', borderColor: '#1A1A1A' },
-  chipText: { fontSize: 13, fontWeight: '600', color: '#555' },
-  activeChipText: { color: '#fff' },
-  inactiveChip: { backgroundColor: '#fff' },
-  inactiveChipText: { color: '#555' },
+  chip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1 },
+  chipText: { fontSize: 13, fontWeight: '600' },
   
-  // --- DATE PICKER ---
-  dateRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, backgroundColor: '#fff', padding: 10, borderRadius: 12, borderWidth: 1, borderColor: '#eee' },
+  dateRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, padding: 10, borderRadius: 12, borderWidth: 1 },
   dateBtn: { flex: 1, padding: 5 },
-  dateLabel: { fontSize: 10, color: '#888', textTransform: 'uppercase' },
-  dateValue: { fontSize: 14, fontWeight: '600', color: '#1A1A1A', marginTop: 2 },
+  dateLabel: { fontSize: 10, textTransform: 'uppercase' },
+  dateValue: { fontSize: 14, fontWeight: '600', marginTop: 2 },
 
-  // --- TOTAL CARD (Updated Style) ---
-  totalCard: {
-    backgroundColor: '#fff', 
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    
-    // Soft Shadow
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    borderWidth: 1,
-    borderColor: '#F0F0F0'
-  },
-  totalLabel: { 
-    color: '#888', 
-    fontSize: 12, 
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5
-  },
-  filterInfo: { 
-    color: '#1A1A1A', 
-    fontSize: 11, 
-    marginTop: 4, 
-    fontWeight: '500',
-    maxWidth: 150 
-  },
-  totalValue: { 
-    color: '#1A1A1A', 
-    fontSize: 28, 
-    fontWeight: '800' 
-  },
+  totalCard: { padding: 20, borderRadius: 16, marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1 },
+  totalLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  filterInfo: { fontSize: 11, marginTop: 4, fontWeight: '500', maxWidth: 150 },
+  totalValue: { fontSize: 28, fontWeight: '800' },
 
-  // --- LIST ITEMS ---
-  card: { backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 10 },
+  card: { padding: 16, borderRadius: 12, marginBottom: 10 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  itemTitle: { fontSize: 16, fontWeight: '600', color: '#333' },
-  itemAmount: { fontSize: 16, fontWeight: 'bold', color: '#FF5252' },
-  itemDate: { fontSize: 12, color: '#999', marginTop: 4 },
-  emptyText: { textAlign: 'center', color: '#aaa', marginTop: 30 },
+  itemTitle: { fontSize: 16, fontWeight: '600' },
+  itemAmount: { fontSize: 16, fontWeight: 'bold' },
+  itemDate: { fontSize: 12, marginTop: 4 },
+  emptyText: { textAlign: 'center', marginTop: 30 },
 });
