@@ -7,10 +7,14 @@ import { useExpenses } from '../context/ExpenseContext';
 import Short from '../components/Short'; 
 
 export default function HomeScreen({ navigation }) {
-  const { getFilteredExpenses, deleteExpense, username } = useExpenses();
+  // 1. Get New Context Values (currency, budget, getTotalSpent)
+  const { 
+    getFilteredExpenses, deleteExpense, username, 
+    currency, budget, getTotalSpent 
+  } = useExpenses();
   
   // States
-  const [filter, setFilter] = useState('All'); // 'All', 'Today', 'Week', 'Month'
+  const [filter, setFilter] = useState('All'); 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('RECENT'); 
   const [showSortModal, setShowSortModal] = useState(false);
@@ -20,16 +24,16 @@ export default function HomeScreen({ navigation }) {
   const [modalType, setModalType] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
 
-  // --- 1. SMART ICON / DATE LOGIC ---
+  // --- SMART ICON / DATE LOGIC ---
   const renderLeftBox = (item) => {
     const isTodayFilter = filter === 'Today' || filter === 'Day';
     const isWeekFilter = filter === 'Week' || filter === '7 Days';
     
-    // SCENARIO A: If filter is TODAY -> Show Category Icon (or Letter)
+    // A. TODAY: Show Icon
     if (isTodayFilter) {
         const iconMap = {
-            'Food': 'silverware-fork-knife', // 🍴
-            'Travel': 'car',                 // 🚗
+            'Food': 'silverware-fork-knife', 
+            'Travel': 'car',                 
             'Bills': 'file-document-outline',
             'Shopping': 'shopping',
             'Health': 'medical-bag',
@@ -39,24 +43,22 @@ export default function HomeScreen({ navigation }) {
         const iconName = iconMap[item.category];
 
         if (iconName) {
-            // Show Icon for Default Categories
             return <IconButton icon={iconName} size={24} iconColor="#1A1A1A" style={{ margin: 0 }} />;
         } else {
-            // Show First Letter for Custom Categories
             return <Text style={styles.iconText}>{item.category.charAt(0).toUpperCase()}</Text>;
         }
     }
 
-    // SCENARIO B: If filter is WEEK -> Show Day Name (e.g., "Mon")
     const dateObj = new Date(item.date);
-    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' }); // "Mon", "Tue"
-    const dateNum = dateObj.getDate(); // 6, 21, 30
+    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' }); 
+    const dateNum = dateObj.getDate(); 
 
+    // B. WEEK: Show Day Name (Mon, Tue)
     if (isWeekFilter) {
         return <Text style={styles.dateTextBig}>{dayName}</Text>;
     }
 
-    // SCENARIO C: If filter is MONTH/ALL -> Show Date & Day (e.g., "6 Fri")
+    // C. MONTH/ALL: Show Date & Day (6 FRI)
     return (
         <View style={{ alignItems: 'center' }}>
             <Text style={styles.dateTextNum}>{dateNum}</Text>
@@ -65,7 +67,7 @@ export default function HomeScreen({ navigation }) {
     );
   };
 
-  // 2. Get Data & Search
+  // 2. Process Data
   const initialData = getFilteredExpenses(filter);
   let processedData = initialData.filter(item => {
     const query = searchQuery.toLowerCase();
@@ -82,15 +84,19 @@ export default function HomeScreen({ navigation }) {
     return new Date(b.date) - new Date(a.date);
   });
 
-  const total = processedData.reduce((sum, item) => sum + item.amount, 0);
+  const totalFiltered = processedData.reduce((sum, item) => sum + item.amount, 0);
+  
+  // Calculate Available Balance (Global Budget - Global Spent)
+  const totalGlobalSpent = getTotalSpent();
+  const availableBalance = (parseFloat(budget) || 0) - totalGlobalSpent;
 
   // Handlers
   const openNote = (item) => { setSelectedItem(item); setModalType('NOTE'); setVisible(true); };
   const openDeleteConfirm = (item) => { setSelectedItem(item); setModalType('DELETE'); setVisible(true); };
-  
   const handleSortSelect = (type) => { setSortBy(type); setShowSortModal(false); };
   const handleConfirmDelete = () => { if (selectedItem) { deleteExpense(selectedItem.id); setVisible(false); }};
 
+  // Sort Popup Helper
   const SortOption = ({ label, type, icon }) => (
     <TouchableOpacity onPress={() => handleSortSelect(type)} style={styles.sortOption}>
         <View style={{flexDirection: 'row', alignItems: 'center'}}>
@@ -107,6 +113,7 @@ export default function HomeScreen({ navigation }) {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FA" />
 
+      {/* MODALS */}
       <Portal>
         <Modal visible={showSortModal} onDismiss={() => setShowSortModal(false)} contentContainerStyle={styles.modalContainer}>
           <Text style={styles.modalTitle}>Sort Expenses</Text>
@@ -156,10 +163,21 @@ export default function HomeScreen({ navigation }) {
         </View>
       </View>
 
-      {/* BALANCE */}
+      {/* --- NEW BALANCE CARD (Split View) --- */}
       <View style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>Total Balance</Text>
-        <Text style={styles.balanceAmount}>₹{total.toLocaleString('en-IN')}</Text>
+        {/* Left: Spent */}
+        <View>
+            <Text style={styles.balanceLabel}>Spent</Text>
+            <Text style={styles.balanceAmount}>-{currency}{totalFiltered.toLocaleString('en-IN')}</Text>
+        </View>
+        
+        {/* Right: Available */}
+        <View style={{alignItems: 'flex-end'}}>
+            <Text style={styles.balanceLabel}>Available</Text>
+            <Text style={[styles.balanceAmount, { color: availableBalance < 0 ? '#FF5252' : '#00C853' }]}>
+                {currency}{availableBalance.toLocaleString('en-IN')}
+            </Text>
+        </View>
       </View>
 
       {/* SEARCH */}
@@ -179,7 +197,7 @@ export default function HomeScreen({ navigation }) {
         )}
       </View>
 
-      {/* SHORT FILTER (Controls the View) */}
+      {/* FILTER BUTTONS */}
       <Short 
         filter={filter} 
         setFilter={setFilter} 
@@ -187,7 +205,7 @@ export default function HomeScreen({ navigation }) {
         onSortPress={() => setShowSortModal(true)} 
       />
 
-      {/* EXPENSE LIST */}
+      {/* LIST */}
       <FlatList
         data={processedData}
         keyExtractor={(item) => item.id}
@@ -197,7 +215,7 @@ export default function HomeScreen({ navigation }) {
           <Surface style={styles.card} elevation={1}>
             <View style={styles.leftSection}>
               
-              {/* --- DYNAMIC ICON/DATE BOX --- */}
+              {/* DYNAMIC ICON BOX */}
               <View style={styles.iconBox}>
                 {renderLeftBox(item)}
               </View>
@@ -222,7 +240,8 @@ export default function HomeScreen({ navigation }) {
             </View>
 
             <View style={styles.rightSection}>
-              <Text style={styles.itemAmount}>-₹{item.amount}</Text>
+              {/* Dynamic Currency */}
+              <Text style={styles.itemAmount}>-{currency}{item.amount}</Text>
               <View style={styles.actionRow}>
                 <TouchableOpacity onPress={() => navigation.navigate('AddExpense', { expense: item })} style={styles.miniButton}>
                   <IconButton icon="pencil" size={16} iconColor="#666" style={{ margin: 0 }} />
@@ -249,23 +268,33 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 14, color: '#888', fontWeight: '500' },
   headerTitle: { fontSize: 24, color: '#1A1A1A', fontWeight: 'bold' },
   chartButton: { backgroundColor: '#fff', borderRadius: 50, padding: 6, elevation: 3, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
-  balanceCard: { marginHorizontal: 24, marginBottom: 15 },
-  balanceLabel: { fontSize: 14, color: '#666', marginBottom: 5 },
-  balanceAmount: { fontSize: 42, color: '#1A1A1A', fontWeight: '800' },
+  
+  // --- UPDATED BALANCE CARD ---
+  balanceCard: { 
+    marginHorizontal: 24, 
+    marginBottom: 15, 
+    backgroundColor: '#fff', 
+    padding: 20, 
+    borderRadius: 16,
+    elevation: 2,
+    flexDirection: 'row', // Side by Side
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  balanceLabel: { fontSize: 12, color: '#888', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  balanceAmount: { fontSize: 26, color: '#FF5252', fontWeight: '800' }, // Adjusted size to fit
+
   searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', marginHorizontal: 24, marginBottom: 15, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 },
   searchInput: { flex: 1, fontSize: 16, color: '#1A1A1A', paddingVertical: 8, marginLeft: 5 },
   listContent: { paddingHorizontal: 24, paddingBottom: 100 },
   card: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', marginBottom: 12, padding: 16, borderRadius: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   leftSection: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   
-  // --- UPDATED ICON BOX ---
   iconBox: { backgroundColor: '#F3F4F6', borderRadius: 12, width: 48, height: 48, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
   iconText: { fontSize: 20, fontWeight: 'bold', color: '#1A1A1A' },
-  
-  // --- NEW DATE STYLES ---
-  dateTextBig: { fontSize: 14, fontWeight: 'bold', color: '#1A1A1A' }, // For Week (e.g. "Mon")
-  dateTextNum: { fontSize: 16, fontWeight: 'bold', color: '#1A1A1A', lineHeight: 18 }, // For Month (e.g. "6")
-  dateTextDay: { fontSize: 10, fontWeight: '600', color: '#888', textTransform: 'uppercase' }, // For Month (e.g. "FRI")
+  dateTextBig: { fontSize: 14, fontWeight: 'bold', color: '#1A1A1A' }, 
+  dateTextNum: { fontSize: 16, fontWeight: 'bold', color: '#1A1A1A', lineHeight: 18 }, 
+  dateTextDay: { fontSize: 10, fontWeight: '600', color: '#888', textTransform: 'uppercase' }, 
 
   itemTitle: { color: '#1A1A1A', fontSize: 16, fontWeight: '600' },
   itemCategory: { color: '#999', fontSize: 12, marginTop: 2 },

@@ -4,16 +4,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const ExpenseContext = createContext();
 
 export const ExpenseProvider = ({ children }) => {
-  // --- 1. STATE VARIABLES ---
+  // --- STATE ---
   const [expenses, setExpenses] = useState([]);
-  const [username, setUsername] = useState('User'); // <--- RESTORED THIS!
-  
-  // Dynamic Lists
+  const [username, setUsername] = useState('User');
+  const [currency, setCurrency] = useState('₹');
+  const [budget, setBudget] = useState('0'); // <--- NEW: Budget Limit
+
   const [categories, setCategories] = useState(['Food', 'Travel', 'Bills', 'Shopping', 'Health', 'Other']);
   const [paymentModes, setPaymentModes] = useState(['UPI', 'Cash', 'Card']);
   const [upiApps, setUpiApps] = useState(['GPay', 'PhonePe', 'Paytm']); 
 
-  // --- 2. LOAD DATA ON STARTUP ---
+  // --- LOAD DATA ---
   useEffect(() => {
     loadData();
   }, []);
@@ -23,8 +24,14 @@ export const ExpenseProvider = ({ children }) => {
       const storedExpenses = await AsyncStorage.getItem('expenses');
       if (storedExpenses) setExpenses(JSON.parse(storedExpenses));
 
-      const storedName = await AsyncStorage.getItem('username'); // <--- LOAD NAME
+      const storedName = await AsyncStorage.getItem('username');
       if (storedName) setUsername(storedName);
+
+      const storedCurrency = await AsyncStorage.getItem('currency');
+      if (storedCurrency) setCurrency(storedCurrency);
+
+      const storedBudget = await AsyncStorage.getItem('budget'); // <--- LOAD BUDGET
+      if (storedBudget) setBudget(storedBudget);
 
       const storedCats = await AsyncStorage.getItem('categories');
       if (storedCats) setCategories(JSON.parse(storedCats));
@@ -40,15 +47,23 @@ export const ExpenseProvider = ({ children }) => {
     }
   };
 
-  // --- 3. ACTIONS ---
+  // --- ACTIONS ---
 
-  // Username
+  const updateBudget = async (amount) => { // <--- NEW ACTION
+    setBudget(amount);
+    await AsyncStorage.setItem('budget', amount);
+  };
+
+  const updateCurrency = async (symbol) => {
+    setCurrency(symbol);
+    await AsyncStorage.setItem('currency', symbol);
+  };
+
   const updateUsername = async (name) => {
     setUsername(name);
     await AsyncStorage.setItem('username', name);
   };
 
-  // Expenses
   const addExpense = async (newExpense) => {
     const updated = [newExpense, ...expenses];
     setExpenses(updated);
@@ -72,57 +87,46 @@ export const ExpenseProvider = ({ children }) => {
     await AsyncStorage.removeItem('expenses');
   };
 
-  // Categories
   const addCategory = async (cat) => {
     if (categories.includes(cat)) return;
     const updated = [...categories, cat];
     setCategories(updated);
     await AsyncStorage.setItem('categories', JSON.stringify(updated));
   };
-
   const removeCategory = async (cat) => {
     const updated = categories.filter(c => c !== cat);
     setCategories(updated);
     await AsyncStorage.setItem('categories', JSON.stringify(updated));
   };
-
-  // Payment Modes
   const addPaymentMode = async (mode) => {
     if (paymentModes.includes(mode)) return;
     const updated = [...paymentModes, mode];
     setPaymentModes(updated);
     await AsyncStorage.setItem('paymentModes', JSON.stringify(updated));
   };
-
   const removePaymentMode = async (mode) => {
     const updated = paymentModes.filter(m => m !== mode);
     setPaymentModes(updated);
     await AsyncStorage.setItem('paymentModes', JSON.stringify(updated));
   };
-
-  // UPI Apps
   const addUpiApp = async (app) => {
     if (upiApps.includes(app)) return;
     const updated = [...upiApps, app];
     setUpiApps(updated);
     await AsyncStorage.setItem('upiApps', JSON.stringify(updated));
   };
-
   const removeUpiApp = async (app) => {
     const updated = upiApps.filter(a => a !== app);
     setUpiApps(updated);
     await AsyncStorage.setItem('upiApps', JSON.stringify(updated));
   };
 
-  // --- 4. FILTER FUNCTION (FIXED FOR TODAY) ---
   const getFilteredExpenses = (timeRange) => {
     if (!timeRange || timeRange === 'All') return expenses;
-    
     const now = new Date();
     const cutoff = new Date(); 
-
     if (timeRange === 'Today' || timeRange === 'Day') {
-        cutoff.setHours(0, 0, 0, 0); // Start of Today
+        cutoff.setHours(0, 0, 0, 0); 
     } else if (timeRange === 'Week' || timeRange === '7 Days') {
         cutoff.setDate(now.getDate() - 7);
         cutoff.setHours(0, 0, 0, 0); 
@@ -133,16 +137,22 @@ export const ExpenseProvider = ({ children }) => {
         cutoff.setFullYear(now.getFullYear() - 1);
         cutoff.setHours(0, 0, 0, 0);
     }
-    
     return expenses.filter(e => new Date(e.date) >= cutoff);
+  };
+
+  // Helper: Calculate Total Spent (Global)
+  const getTotalSpent = () => {
+    return expenses.reduce((sum, item) => sum + item.amount, 0);
   };
 
   return (
     <ExpenseContext.Provider value={{ 
       expenses, 
-      username, updateUsername, // <--- EXPORTED NOW
+      username, updateUsername, 
+      currency, updateCurrency,
+      budget, updateBudget, // <--- NEW EXPORT
       addExpense, deleteExpense, editExpense, clearAllData,
-      getFilteredExpenses, 
+      getFilteredExpenses, getTotalSpent,
       categories, addCategory, removeCategory,
       paymentModes, addPaymentMode, removePaymentMode,
       upiApps, addUpiApp, removeUpiApp
