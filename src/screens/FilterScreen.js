@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, FlatList, Platform } from 'react-native';
-import { Text, Surface, Button, IconButton } from 'react-native-paper';
+import { Text, Surface, IconButton } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker'; // Import Date Picker
+import DateTimePicker from '@react-native-community/datetimepicker'; 
 import { useExpenses } from '../context/ExpenseContext';
 
 import Compare from '../components/Compare';
 
-const CATEGORIES = ['Food', 'Travel', 'Bills', 'Shopping', 'Health', 'Other'];
-
 export default function FilterScreen({ navigation }) {
-  const { expenses } = useExpenses();
+  // 1. Get Dynamic Categories from Context
+  const { expenses, categories } = useExpenses(); 
+
   const [activeTab, setActiveTab] = useState('Filter'); 
   const [selectedCats, setSelectedCats] = useState([]);
 
-  // --- NEW: Date Range States ---
+  // Date Range States
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [showStartPicker, setShowStartPicker] = useState(false);
@@ -28,7 +28,6 @@ export default function FilterScreen({ navigation }) {
     }
   };
 
-  // Helper to clear dates
   const clearDates = () => {
     setStartDate(null);
     setEndDate(null);
@@ -39,7 +38,7 @@ export default function FilterScreen({ navigation }) {
     // 1. FILTER LOGIC
     const filteredData = expenses.filter(item => {
       const itemDate = new Date(item.date);
-      itemDate.setHours(0, 0, 0, 0); // Normalize time to midnight
+      itemDate.setHours(0, 0, 0, 0); // Normalize time
 
       // Check 1: Category
       const matchCategory = selectedCats.length === 0 || selectedCats.includes(item.category);
@@ -53,7 +52,7 @@ export default function FilterScreen({ navigation }) {
       }
       if (endDate) {
         const end = new Date(endDate);
-        end.setHours(23,59,59,999); // End of that day
+        end.setHours(23,59,59,999); 
         if (itemDate > end) matchDate = false;
       }
 
@@ -65,16 +64,19 @@ export default function FilterScreen({ navigation }) {
 
     return (
       <View style={{ flex: 1 }}>
-        {/* --- SECTION 1: Categories --- */}
+        
+        {/* --- SECTION 1: Categories (Dynamic) --- */}
         <Text style={styles.sectionTitle}>Filter by Category</Text>
         <View style={styles.chipContainer}>
-          {CATEGORIES.map(cat => (
+          {categories.map(cat => (
             <TouchableOpacity
               key={cat}
               onPress={() => toggleCategory(cat)}
               style={[styles.chip, selectedCats.includes(cat) ? styles.activeChip : styles.inactiveChip]}
             >
-              <Text style={[styles.chipText, selectedCats.includes(cat) ? styles.activeChipText : styles.inactiveChipText]}>{cat}</Text>
+              <Text style={[styles.chipText, selectedCats.includes(cat) ? styles.activeChipText : styles.inactiveChipText]}>
+                {cat}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -98,7 +100,7 @@ export default function FilterScreen({ navigation }) {
             )}
         </View>
 
-        {/* Date Pickers (Hidden unless clicked) */}
+        {/* Date Pickers */}
         {showStartPicker && (
             <DateTimePicker
                 value={startDate || new Date()}
@@ -122,11 +124,10 @@ export default function FilterScreen({ navigation }) {
             />
         )}
 
-        {/* --- SECTION 3: Total Card --- */}
+        {/* --- SECTION 3: Total Card (Clean White Style) --- */}
         <Surface style={styles.totalCard} elevation={2}>
             <View>
                 <Text style={styles.totalLabel}>Total Spent</Text>
-                {/* Show filters applied text */}
                 <Text style={styles.filterInfo}>
                    {selectedCats.length > 0 ? selectedCats.join(', ') : 'All Categories'} 
                    {startDate || endDate ? ' • Custom Date' : ''}
@@ -184,8 +185,6 @@ export default function FilterScreen({ navigation }) {
   );
 }
 
-// ... (Keep the rest of the code same, just update the Styles)
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F7FA' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, paddingTop: 10, marginBottom: 10 },
@@ -215,9 +214,9 @@ const styles = StyleSheet.create({
   dateLabel: { fontSize: 10, color: '#888', textTransform: 'uppercase' },
   dateValue: { fontSize: 14, fontWeight: '600', color: '#1A1A1A', marginTop: 2 },
 
-  // --- UPDATED: CLEAN TOTAL CARD (Matches App UI) ---
+  // --- TOTAL CARD (Updated Style) ---
   totalCard: {
-    backgroundColor: '#fff', // White Background (Matches other cards)
+    backgroundColor: '#fff', 
     padding: 20,
     borderRadius: 16,
     marginBottom: 20,
@@ -225,38 +224,33 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     
-    // Soft Shadow (Elevation)
+    // Soft Shadow
     elevation: 2,
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
-
-    // Thin Border
     borderWidth: 1,
     borderColor: '#F0F0F0'
   },
-  
   totalLabel: { 
-    color: '#888', // Grey Label
+    color: '#888', 
     fontSize: 12, 
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5
   },
-  
   filterInfo: { 
-    color: '#1A1A1A', // Black Text for filters
+    color: '#1A1A1A', 
     fontSize: 11, 
     marginTop: 4, 
     fontWeight: '500',
     maxWidth: 150 
   },
-  
   totalValue: { 
-    color: '#1A1A1A', // Black Amount (High Contrast)
+    color: '#1A1A1A', 
     fontSize: 28, 
-    fontWeight: '800' // Extra Bold
+    fontWeight: '800' 
   },
 
   // --- LIST ITEMS ---

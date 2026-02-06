@@ -5,19 +5,46 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useExpenses } from '../context/ExpenseContext';
 
 export default function SettingsScreen({ navigation }) {
-  const { username, updateUsername, clearAllData, upiApps, addUpiApp, removeUpiApp } = useExpenses();
+  const { 
+    username, updateUsername, clearAllData, 
+    upiApps, addUpiApp, removeUpiApp,
+    categories, addCategory, removeCategory,      // <--- NEW
+    paymentModes, addPaymentMode, removePaymentMode // <--- NEW
+  } = useExpenses();
+
   const [nameInput, setNameInput] = useState(username);
   const [newAppInput, setNewAppInput] = useState('');
+  
+  // --- NEW STATE VARIABLES ---
+  const [newCatInput, setNewCatInput] = useState('');
+  const [newModeInput, setNewModeInput] = useState('');
 
   const handleSaveName = () => {
     updateUsername(nameInput);
     Alert.alert("Success", "Name updated!");
   };
 
+  // --- UPI APP HANDLERS ---
   const handleAddApp = () => {
     if(newAppInput.trim().length > 0) {
       addUpiApp(newAppInput.trim());
       setNewAppInput('');
+    }
+  };
+
+  // --- NEW: CATEGORY HANDLERS ---
+  const handleAddCat = () => {
+    if(newCatInput.trim().length > 0) {
+      addCategory(newCatInput.trim());
+      setNewCatInput('');
+    }
+  };
+
+  // --- NEW: MODE HANDLERS ---
+  const handleAddMode = () => {
+    if(newModeInput.trim().length > 0) {
+      addPaymentMode(newModeInput.trim());
+      setNewModeInput('');
     }
   };
 
@@ -68,8 +95,64 @@ export default function SettingsScreen({ navigation }) {
             </Button>
           </Surface>
 
-          {/* --- NEW: UPI Apps Manager --- */}
-          <Text style={styles.sectionTitle}>Payment Methods</Text>
+          {/* --- NEW SECTION: CATEGORIES --- */}
+          <Text style={styles.sectionTitle}>Categories</Text>
+          <Surface style={styles.card} elevation={1}>
+            <Text style={styles.label}>Manage Categories</Text>
+            <View style={styles.addAppRow}>
+              <TextInput 
+                value={newCatInput}
+                onChangeText={setNewCatInput}
+                style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                placeholder="Add new (e.g. Gym)"
+              />
+              <IconButton icon="plus-circle" iconColor="#1A1A1A" size={30} onPress={handleAddCat} />
+            </View>
+
+            <View style={styles.chipRow}>
+              {categories.map(cat => (
+                <Chip 
+                  key={cat} 
+                  onClose={() => removeCategory(cat)} 
+                  style={styles.chip}
+                  textStyle={{ fontSize: 12 }}
+                >
+                  {cat}
+                </Chip>
+              ))}
+            </View>
+          </Surface>
+
+          {/* --- NEW SECTION: PAYMENT MODES --- */}
+          <Text style={styles.sectionTitle}>Payment Modes</Text>
+          <Surface style={styles.card} elevation={1}>
+            <Text style={styles.label}>General Modes (Cash, Card...)</Text>
+            <View style={styles.addAppRow}>
+              <TextInput 
+                value={newModeInput}
+                onChangeText={setNewModeInput}
+                style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                placeholder="Add new (e.g. Voucher)"
+              />
+              <IconButton icon="plus-circle" iconColor="#1A1A1A" size={30} onPress={handleAddMode} />
+            </View>
+
+            <View style={styles.chipRow}>
+              {paymentModes.map(mode => (
+                <Chip 
+                  key={mode} 
+                  onClose={() => removePaymentMode(mode)} 
+                  style={styles.chip}
+                  textStyle={{ fontSize: 12 }}
+                >
+                  {mode}
+                </Chip>
+              ))}
+            </View>
+          </Surface>
+
+          {/* --- EXISTING SECTION: UPI APPS --- */}
+          <Text style={styles.sectionTitle}>UPI Options</Text>
           <Surface style={styles.card} elevation={1}>
             <Text style={styles.label}>Manage UPI Apps</Text>
             <View style={styles.addAppRow}>
@@ -106,7 +189,7 @@ export default function SettingsScreen({ navigation }) {
           </Surface>
 
           <View style={styles.footer}>
-            <Text style={styles.version}>Expense Tracker v1.1</Text>
+            <Text style={styles.version}>Expense Tracker v1.2</Text>
           </View>
         </View>
       </ScrollView>
