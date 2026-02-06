@@ -4,17 +4,14 @@ import { Text, FAB, IconButton, Surface, Modal, Portal, Button } from 'react-nat
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useExpenses } from '../context/ExpenseContext'; 
 
-// --- CHANGED: Import the new "Short" Component ---
 import Short from '../components/Short'; 
 
 export default function HomeScreen({ navigation }) {
   const { getFilteredExpenses, deleteExpense, username } = useExpenses();
   
   // States
-  const [filter, setFilter] = useState('All');
+  const [filter, setFilter] = useState('All'); // 'All', 'Today', 'Week', 'Month'
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // --- SORT STATE ---
   const [sortBy, setSortBy] = useState('RECENT'); 
   const [showSortModal, setShowSortModal] = useState(false);
 
@@ -23,10 +20,53 @@ export default function HomeScreen({ navigation }) {
   const [modalType, setModalType] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
 
-  // 1. Get Base Data
-  const initialData = getFilteredExpenses(filter);
+  // --- 1. SMART ICON / DATE LOGIC ---
+  const renderLeftBox = (item) => {
+    const isTodayFilter = filter === 'Today' || filter === 'Day';
+    const isWeekFilter = filter === 'Week' || filter === '7 Days';
+    
+    // SCENARIO A: If filter is TODAY -> Show Category Icon (or Letter)
+    if (isTodayFilter) {
+        const iconMap = {
+            'Food': 'silverware-fork-knife', // 🍴
+            'Travel': 'car',                 // 🚗
+            'Bills': 'file-document-outline',
+            'Shopping': 'shopping',
+            'Health': 'medical-bag',
+            'Other': 'dots-horizontal'
+        };
 
-  // 2. Apply Search
+        const iconName = iconMap[item.category];
+
+        if (iconName) {
+            // Show Icon for Default Categories
+            return <IconButton icon={iconName} size={24} iconColor="#1A1A1A" style={{ margin: 0 }} />;
+        } else {
+            // Show First Letter for Custom Categories
+            return <Text style={styles.iconText}>{item.category.charAt(0).toUpperCase()}</Text>;
+        }
+    }
+
+    // SCENARIO B: If filter is WEEK -> Show Day Name (e.g., "Mon")
+    const dateObj = new Date(item.date);
+    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' }); // "Mon", "Tue"
+    const dateNum = dateObj.getDate(); // 6, 21, 30
+
+    if (isWeekFilter) {
+        return <Text style={styles.dateTextBig}>{dayName}</Text>;
+    }
+
+    // SCENARIO C: If filter is MONTH/ALL -> Show Date & Day (e.g., "6 Fri")
+    return (
+        <View style={{ alignItems: 'center' }}>
+            <Text style={styles.dateTextNum}>{dateNum}</Text>
+            <Text style={styles.dateTextDay}>{dayName}</Text>
+        </View>
+    );
+  };
+
+  // 2. Get Data & Search
+  const initialData = getFilteredExpenses(filter);
   let processedData = initialData.filter(item => {
     const query = searchQuery.toLowerCase();
     const matchesName = item.name.toLowerCase().includes(query);
@@ -34,12 +74,12 @@ export default function HomeScreen({ navigation }) {
     return matchesName || matchesAmount;
   });
 
-  // 3. --- APPLY SORTING LOGIC ---
+  // 3. Sort Data
   processedData.sort((a, b) => {
-    if (sortBy === 'HIGH') return b.amount - a.amount; // Large First
-    if (sortBy === 'LOW') return a.amount - b.amount;  // Small First
-    if (sortBy === 'OLD') return new Date(a.date) - new Date(b.date); // Oldest First
-    return new Date(b.date) - new Date(a.date);        // Recent First (Default)
+    if (sortBy === 'HIGH') return b.amount - a.amount;
+    if (sortBy === 'LOW') return a.amount - b.amount;
+    if (sortBy === 'OLD') return new Date(a.date) - new Date(b.date);
+    return new Date(b.date) - new Date(a.date);
   });
 
   const total = processedData.reduce((sum, item) => sum + item.amount, 0);
@@ -48,29 +88,14 @@ export default function HomeScreen({ navigation }) {
   const openNote = (item) => { setSelectedItem(item); setModalType('NOTE'); setVisible(true); };
   const openDeleteConfirm = (item) => { setSelectedItem(item); setModalType('DELETE'); setVisible(true); };
   
-  const handleSortSelect = (type) => {
-    setSortBy(type);
-    setShowSortModal(false);
-  };
+  const handleSortSelect = (type) => { setSortBy(type); setShowSortModal(false); };
+  const handleConfirmDelete = () => { if (selectedItem) { deleteExpense(selectedItem.id); setVisible(false); }};
 
-  const handleConfirmDelete = () => {
-    if (selectedItem) {
-      deleteExpense(selectedItem.id);
-      setVisible(false);
-    }
-  };
-
-  // Helper for Sort Option Row (Popup Menu)
   const SortOption = ({ label, type, icon }) => (
     <TouchableOpacity onPress={() => handleSortSelect(type)} style={styles.sortOption}>
         <View style={{flexDirection: 'row', alignItems: 'center'}}>
             <View style={[styles.iconBg, sortBy === type && styles.activeIconBg]}>
-                <IconButton 
-                  icon={icon} 
-                  size={22} 
-                  iconColor={sortBy === type ? "#2575fc" : "#555"} 
-                  style={{ margin: 0 }}
-                />
+                <IconButton icon={icon} size={22} iconColor={sortBy === type ? "#2575fc" : "#555"} style={{ margin: 0 }} />
             </View>
             <Text style={[styles.sortText, sortBy === type && styles.activeSortText]}>{label}</Text>
         </View>
@@ -82,22 +107,17 @@ export default function HomeScreen({ navigation }) {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor="#F5F7FA" />
 
-      {/* --- POPUP MODALS --- */}
       <Portal>
-        {/* SORT MENU MODAL */}
         <Modal visible={showSortModal} onDismiss={() => setShowSortModal(false)} contentContainerStyle={styles.modalContainer}>
           <Text style={styles.modalTitle}>Sort Expenses</Text>
-          
           <SortOption label="Recent First" type="RECENT" icon="sort-calendar-descending" />
           <SortOption label="Oldest First" type="OLD" icon="calendar-arrow-right" />
           <View style={styles.divider} />
           <SortOption label="Highest Amount" type="HIGH" icon="sort-numeric-descending" />
           <SortOption label="Lowest Amount" type="LOW" icon="sort-numeric-ascending" />
-
           <Button mode="contained" onPress={() => setShowSortModal(false)} style={styles.modalBtn} buttonColor="#1A1A1A" textColor="#FFF">Close</Button>
         </Modal>
 
-        {/* DELETE/NOTE MODAL */}
         <Modal visible={visible} onDismiss={() => setVisible(false)} contentContainerStyle={styles.modalContainer}>
           {modalType === 'NOTE' && (
             <View>
@@ -120,7 +140,7 @@ export default function HomeScreen({ navigation }) {
         </Modal>
       </Portal>
 
-      {/* --- HEADER --- */}
+      {/* HEADER */}
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Namaste, {username}</Text>
@@ -136,13 +156,13 @@ export default function HomeScreen({ navigation }) {
         </View>
       </View>
 
-      {/* --- BALANCE --- */}
+      {/* BALANCE */}
       <View style={styles.balanceCard}>
         <Text style={styles.balanceLabel}>Total Balance</Text>
         <Text style={styles.balanceAmount}>₹{total.toLocaleString('en-IN')}</Text>
       </View>
 
-      {/* --- SEARCH --- */}
+      {/* SEARCH */}
       <View style={styles.searchContainer}>
         <IconButton icon="magnify" size={20} iconColor="#999" style={{ margin: 0 }} />
         <TextInput 
@@ -159,7 +179,7 @@ export default function HomeScreen({ navigation }) {
         )}
       </View>
 
-      {/* --- REPLACED: USING "SHORT" COMPONENT --- */}
+      {/* SHORT FILTER (Controls the View) */}
       <Short 
         filter={filter} 
         setFilter={setFilter} 
@@ -167,7 +187,7 @@ export default function HomeScreen({ navigation }) {
         onSortPress={() => setShowSortModal(true)} 
       />
 
-      {/* --- EXPENSE LIST --- */}
+      {/* EXPENSE LIST */}
       <FlatList
         data={processedData}
         keyExtractor={(item) => item.id}
@@ -176,9 +196,12 @@ export default function HomeScreen({ navigation }) {
         renderItem={({ item }) => (
           <Surface style={styles.card} elevation={1}>
             <View style={styles.leftSection}>
+              
+              {/* --- DYNAMIC ICON/DATE BOX --- */}
               <View style={styles.iconBox}>
-                <Text style={styles.iconText}>{item.name.charAt(0)}</Text>
+                {renderLeftBox(item)}
               </View>
+
               <View>
                 <Text style={styles.itemTitle}>{item.name}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -197,6 +220,7 @@ export default function HomeScreen({ navigation }) {
                 ) : null}
               </View>
             </View>
+
             <View style={styles.rightSection}>
               <Text style={styles.itemAmount}>-₹{item.amount}</Text>
               <View style={styles.actionRow}>
@@ -215,7 +239,6 @@ export default function HomeScreen({ navigation }) {
 
       <FAB icon="plus" color="#fff" style={styles.fab} onPress={() => navigation.navigate('AddExpense')} />
       <FAB icon="filter-variant" color="#fff" style={styles.fabLeft} onPress={() => navigation.navigate('Filter')} />
-
     </SafeAreaView>
   );
 }
@@ -234,8 +257,16 @@ const styles = StyleSheet.create({
   listContent: { paddingHorizontal: 24, paddingBottom: 100 },
   card: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', marginBottom: 12, padding: 16, borderRadius: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   leftSection: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  iconBox: { backgroundColor: '#F3F4F6', borderRadius: 12, width: 45, height: 45, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
-  iconText: { fontSize: 18, fontWeight: 'bold', color: '#1A1A1A' },
+  
+  // --- UPDATED ICON BOX ---
+  iconBox: { backgroundColor: '#F3F4F6', borderRadius: 12, width: 48, height: 48, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+  iconText: { fontSize: 20, fontWeight: 'bold', color: '#1A1A1A' },
+  
+  // --- NEW DATE STYLES ---
+  dateTextBig: { fontSize: 14, fontWeight: 'bold', color: '#1A1A1A' }, // For Week (e.g. "Mon")
+  dateTextNum: { fontSize: 16, fontWeight: 'bold', color: '#1A1A1A', lineHeight: 18 }, // For Month (e.g. "6")
+  dateTextDay: { fontSize: 10, fontWeight: '600', color: '#888', textTransform: 'uppercase' }, // For Month (e.g. "FRI")
+
   itemTitle: { color: '#1A1A1A', fontSize: 16, fontWeight: '600' },
   itemCategory: { color: '#999', fontSize: 12, marginTop: 2 },
   methodTag: { backgroundColor: '#f0f0f0', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 2 },
@@ -248,18 +279,14 @@ const styles = StyleSheet.create({
   emptyText: { color: '#aaa', textAlign: 'center', marginTop: 50 },
   fab: { position: 'absolute', margin: 20, right: 0, bottom: 0, backgroundColor: '#1A1A1A', borderRadius: 16 },
   fabLeft: { position: 'absolute', margin: 20, left: 0, bottom: 0, backgroundColor: '#1A1A1A', borderRadius: 16 },
-  
-  // MODAL STYLES
   modalContainer: { backgroundColor: 'white', padding: 24, margin: 24, borderRadius: 20, elevation: 5 },
   modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15, color: '#1A1A1A' },
   modalContent: { fontSize: 16, color: '#555', marginBottom: 20, lineHeight: 22 },
   modalBtn: { borderRadius: 12, marginTop: 15 },
   modalActionRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  
-  // SORT ROW STYLES (PREMIUM LOOK)
   sortOption: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
   iconBg: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#F3F4F6', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  activeIconBg: { backgroundColor: '#E3F2FD' }, // Light Blue when active
+  activeIconBg: { backgroundColor: '#E3F2FD' }, 
   sortText: { fontSize: 16, color: '#333', fontWeight: '500' },
   activeSortText: { color: '#2575fc', fontWeight: 'bold' },
   divider: { height: 1, backgroundColor: '#eee', marginVertical: 8 }
