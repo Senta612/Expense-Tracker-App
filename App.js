@@ -14,6 +14,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import FilterScreen from './src/screens/FilterScreen';
 import CustomAlert from './src/components/CustomAlert';
 import UpdateModal from './src/components/UpdateModal';
+import ChatScreen from './src/screens/ChatScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -48,7 +49,7 @@ export default function App() {
               <Stack.Screen
                 name="AddExpense"
                 component={AddExpenseScreen}
-                options={{ title: 'Add New Entry' }}
+                options={{ title: 'Add New Entry' , headerShown : false}}
               />
 
               <Stack.Screen
@@ -68,6 +69,11 @@ export default function App() {
                 component={FilterScreen}
                 options={{ headerShown: false }}
               />
+
+              <Stack.Screen
+              name="Chat" 
+              component={ChatScreen} 
+              options={{ headerShown: false }} />
             </Stack.Navigator>
           </NavigationContainer>
           <CustomAlert />
