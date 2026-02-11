@@ -1,12 +1,9 @@
 import React, { useState } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity, StatusBar, TextInput, LayoutAnimation, Platform, UIManager } from 'react-native';
-import { Text, FAB, IconButton, Surface, Modal, Portal, Button } from 'react-native-paper';
+import { Text, FAB, IconButton, Surface, Modal, Portal, Button, Avatar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useExpenses } from '../context/ExpenseContext'; 
-import ChatScreen from './ChatScreen';
-import { Avatar } from 'react-native-paper';
-
-import Short from '../components/Short'; 
+import { useExpenses } from '../context/ExpenseContext';
+import Short from '../components/Short';
 
 // Enable Animations on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -15,14 +12,14 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export default function HomeScreen({ navigation }) {
   // 1. Get Colors & Data from Context
-  const { 
-    getFilteredExpenses, deleteExpense, username, 
-    currency, budget, getTotalSpent, colors, isDark 
+  const {
+    getFilteredExpenses, deleteExpense, username,
+    currency, budget, getTotalSpent, colors, isDark
   } = useExpenses();
-  
-  const [filter, setFilter] = useState('All'); 
+
+  const [filter, setFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('RECENT'); 
+  const [sortBy, setSortBy] = useState('RECENT');
   const [showSortModal, setShowSortModal] = useState(false);
 
   // Modal States
@@ -48,32 +45,32 @@ export default function HomeScreen({ navigation }) {
   const renderLeftBox = (item) => {
     const isTodayFilter = filter === 'Today' || filter === 'Day';
     const isWeekFilter = filter === 'Week' || filter === '7 Days';
-    
+
     // A. TODAY: Show Icon
     if (isTodayFilter) {
-        const iconMap = {
-            'Food': 'silverware-fork-knife', 'Travel': 'car', 'Bills': 'file-document-outline',
-            'Shopping': 'shopping', 'Health': 'medical-bag', 'Other': 'dots-horizontal'
-        };
-        const iconName = iconMap[item.category];
-        
-        if (iconName) return <IconButton icon={iconName} size={24} iconColor={colors.text} style={{ margin: 0 }} />;
-        return <Text style={[styles.iconText, { color: colors.text }]}>{item.category.charAt(0).toUpperCase()}</Text>;
+      const iconMap = {
+        'Food': 'silverware-fork-knife', 'Travel': 'car', 'Bills': 'file-document-outline',
+        'Shopping': 'shopping', 'Health': 'medical-bag', 'Other': 'dots-horizontal'
+      };
+      const iconName = iconMap[item.category];
+
+      if (iconName) return <IconButton icon={iconName} size={24} iconColor={colors.text} style={{ margin: 0 }} />;
+      return <Text style={[styles.iconText, { color: colors.text }]}>{item.category.charAt(0).toUpperCase()}</Text>;
     }
 
     const dateObj = new Date(item.date);
-    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' }); 
-    const dateNum = dateObj.getDate(); 
+    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+    const dateNum = dateObj.getDate();
 
     // B. WEEK: Show Day Name
     if (isWeekFilter) return <Text style={[styles.dateTextBig, { color: colors.text }]}>{dayName}</Text>;
 
     // C. MONTH: Show Date & Day
     return (
-        <View style={{ alignItems: 'center' }}>
-            <Text style={[styles.dateTextNum, { color: colors.text }]}>{dateNum}</Text>
-            <Text style={[styles.dateTextDay, { color: colors.textSec }]}>{dayName}</Text>
-        </View>
+      <View style={{ alignItems: 'center' }}>
+        <Text style={[styles.dateTextNum, { color: colors.text }]}>{dateNum}</Text>
+        <Text style={[styles.dateTextDay, { color: colors.textSec }]}>{dayName}</Text>
+      </View>
     );
   };
 
@@ -102,13 +99,13 @@ export default function HomeScreen({ navigation }) {
 
   const SortOption = ({ label, type, icon }) => (
     <TouchableOpacity onPress={() => handleSortSelect(type)} style={styles.sortOption}>
-        <View style={{flexDirection: 'row', alignItems: 'center'}}>
-            <View style={[styles.iconBg, { backgroundColor: colors.chip }, sortBy === type && { backgroundColor: colors.inputBg }]}>
-                <IconButton icon={icon} size={22} iconColor={sortBy === type ? colors.primary : colors.textSec} style={{ margin: 0 }} />
-            </View>
-            <Text style={[styles.sortText, { color: colors.text }, sortBy === type && { color: colors.primary, fontWeight: 'bold' }]}>{label}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={[styles.iconBg, { backgroundColor: colors.chip }, sortBy === type && { backgroundColor: colors.inputBg }]}>
+          <IconButton icon={icon} size={22} iconColor={sortBy === type ? colors.primary : colors.textSec} style={{ margin: 0 }} />
         </View>
-        {sortBy === type && <IconButton icon="check" size={20} iconColor={colors.primary} />}
+        <Text style={[styles.sortText, { color: colors.text }, sortBy === type && { color: colors.primary, fontWeight: 'bold' }]}>{label}</Text>
+      </View>
+      {sortBy === type && <IconButton icon="check" size={20} iconColor={colors.primary} />}
     </TouchableOpacity>
   );
 
@@ -157,34 +154,44 @@ export default function HomeScreen({ navigation }) {
           <Text style={[styles.headerTitle, { color: colors.text }]}>My Spending</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>
-            <TouchableOpacity onPress={() => navigation.navigate('Stats')} style={[styles.chartButton, { backgroundColor: colors.surface }]}>
-              <IconButton icon="chart-pie" iconColor={colors.text} size={24} style={{ margin: 0 }} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={[styles.chartButton, { backgroundColor: colors.surface }]}>
-              <IconButton icon="cog" iconColor={colors.text} size={24} style={{ margin: 0 }} />
-            </TouchableOpacity>
+          
+          {/* 🔔 NOTIFICATION BUTTON (Matched Style) */}
+          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={[styles.chartButton, { backgroundColor: colors.surface }]}>
+             <IconButton icon="bell-outline" iconColor={colors.text} size={24} style={{ margin: 0 }} />
+          </TouchableOpacity>
+
+          {/* 📊 CHART BUTTON */}
+          <TouchableOpacity onPress={() => navigation.navigate('Stats')} style={[styles.chartButton, { backgroundColor: colors.surface }]}>
+            <IconButton icon="chart-pie" iconColor={colors.text} size={24} style={{ margin: 0 }} />
+          </TouchableOpacity>
+
+          {/* ⚙️ SETTINGS BUTTON */}
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={[styles.chartButton, { backgroundColor: colors.surface }]}>
+            <IconButton icon="cog" iconColor={colors.text} size={24} style={{ margin: 0 }} />
+          </TouchableOpacity>
+
         </View>
       </View>
 
       {/* BALANCE CARD */}
       <View style={[styles.balanceCard, { backgroundColor: colors.surface }]}>
         <View>
-            <Text style={[styles.balanceLabel, { color: colors.textSec }]}>Spent</Text>
-            <Text style={[styles.balanceAmount, { color: colors.error }]}>-{currency}{totalFiltered.toLocaleString('en-IN')}</Text>
+          <Text style={[styles.balanceLabel, { color: colors.textSec }]}>Spent</Text>
+          <Text style={[styles.balanceAmount, { color: colors.error }]}>-{currency}{totalFiltered.toLocaleString('en-IN')}</Text>
         </View>
-        <View style={{alignItems: 'flex-end'}}>
-            <Text style={[styles.balanceLabel, { color: colors.textSec }]}>Available</Text>
-            <Text style={[styles.balanceAmount, { color: availableBalance < 0 ? colors.error : colors.success }]}>
-                {currency}{availableBalance.toLocaleString('en-IN')}
-            </Text>
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={[styles.balanceLabel, { color: colors.textSec }]}>Available</Text>
+          <Text style={[styles.balanceAmount, { color: availableBalance < 0 ? colors.error : colors.success }]}>
+            {currency}{availableBalance.toLocaleString('en-IN')}
+          </Text>
         </View>
       </View>
 
       {/* SEARCH */}
       <View style={[styles.searchContainer, { backgroundColor: colors.surface }]}>
         <IconButton icon="magnify" size={20} iconColor={colors.textSec} style={{ margin: 0 }} />
-        <TextInput 
-          placeholder="Search name or amount..." 
+        <TextInput
+          placeholder="Search name or amount..."
           placeholderTextColor={colors.textSec}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -197,12 +204,12 @@ export default function HomeScreen({ navigation }) {
         )}
       </View>
 
-      {/* FILTER BUTTONS (With Animation Handler) */}
-      <Short 
-        filter={filter} 
-        setFilter={handleFilterChange} 
-        activeSort={sortBy} 
-        onSortPress={() => setShowSortModal(true)} 
+      {/* FILTER BUTTONS */}
+      <Short
+        filter={filter}
+        setFilter={handleFilterChange}
+        activeSort={sortBy}
+        onSortPress={() => setShowSortModal(true)}
       />
 
       {/* LIST */}
@@ -252,7 +259,7 @@ export default function HomeScreen({ navigation }) {
         ListEmptyComponent={<Text style={[styles.emptyText, { color: colors.textSec }]}>{searchQuery ? `No results.` : "No expenses found ✨"}</Text>}
       />
 
-      {/* "META AI" STYLE BOT BUTTON 🤖 */}
+      {/* AI BOT BUTTON */}
       <TouchableOpacity
         onPress={() => navigation.navigate('Chat')}
         style={[styles.aiPill, { backgroundColor: colors.surface }]}
@@ -273,8 +280,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: 20, marginBottom: 20 },
   greeting: { fontSize: 14, fontWeight: '500' },
   headerTitle: { fontSize: 24, fontWeight: 'bold' },
-  chartButton: { borderRadius: 50, padding: 6, elevation: 3 },
-  
+  chartButton: { borderRadius: 50, padding: 6, elevation: 3 }, // Keeps all top buttons same size
+
   balanceCard: { marginHorizontal: 24, marginBottom: 15, padding: 20, borderRadius: 16, elevation: 2, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   balanceLabel: { fontSize: 12, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
   balanceAmount: { fontSize: 26, fontWeight: '800' },
@@ -282,14 +289,14 @@ const styles = StyleSheet.create({
   searchContainer: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 24, marginBottom: 15, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 16, elevation: 2 },
   searchInput: { flex: 1, fontSize: 16, paddingVertical: 8, marginLeft: 5 },
   listContent: { paddingHorizontal: 24, paddingBottom: 100 },
-  
+
   card: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, padding: 16, borderRadius: 16, elevation: 2 },
   leftSection: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   iconBox: { borderRadius: 12, width: 48, height: 48, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
   iconText: { fontSize: 20, fontWeight: 'bold' },
-  dateTextBig: { fontSize: 14, fontWeight: 'bold' }, 
-  dateTextNum: { fontSize: 16, fontWeight: 'bold', lineHeight: 18 }, 
-  dateTextDay: { fontSize: 10, fontWeight: '600', textTransform: 'uppercase' }, 
+  dateTextBig: { fontSize: 14, fontWeight: 'bold' },
+  dateTextNum: { fontSize: 16, fontWeight: 'bold', lineHeight: 18 },
+  dateTextDay: { fontSize: 10, fontWeight: '600', textTransform: 'uppercase' },
 
   itemTitle: { fontSize: 16, fontWeight: '600' },
   itemCategory: { fontSize: 12, marginTop: 2 },
@@ -303,29 +310,29 @@ const styles = StyleSheet.create({
   emptyText: { textAlign: 'center', marginTop: 50 },
   fab: { position: 'absolute', margin: 20, right: 0, bottom: 0, borderRadius: 16 },
   fabLeft: { position: 'absolute', margin: 20, left: 0, bottom: 0, borderRadius: 16 },
-  
+
   modalContainer: { padding: 24, margin: 24, borderRadius: 20, elevation: 5 },
   modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15 },
   modalContent: { fontSize: 16, marginBottom: 20, lineHeight: 22 },
   modalBtn: { borderRadius: 12, marginTop: 15 },
   modalActionRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  
+
   sortOption: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
   iconBg: { width: 36, height: 36, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   sortText: { fontSize: 16, fontWeight: '500' },
   divider: { height: 1, marginVertical: 8 },
 
-  aiPill: { 
-    position: 'absolute', 
-    right: 20, 
-    bottom: 90, // Sits exactly above the + button
-    borderRadius: 25, 
+  aiPill: {
+    position: 'absolute',
+    right: 20,
+    bottom: 90,
+    borderRadius: 25,
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 16,
-    elevation: 4, // Shadow for Android
-    shadowColor: "#000", // Shadow for iOS
+    elevation: 4,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
