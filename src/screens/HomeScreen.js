@@ -1,16 +1,220 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, StatusBar, TextInput, LayoutAnimation, Platform, UIManager, Animated, Modal } from 'react-native';
+import { View, FlatList, StyleSheet, TouchableOpacity, StatusBar, TextInput, LayoutAnimation, Platform, UIManager, Animated, Modal, Dimensions } from 'react-native';
 import { Text, FAB, IconButton, Surface, Portal, Button, Avatar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useExpenses } from '../context/ExpenseContext';
 import Short from '../components/Short';
 
-// Enable Physics Animations (Spring)
+const { width, height } = Dimensions.get('window');
+
+// Enable Layout Animations (for Accordion only)
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-// --- 1. BOUNCY CUSTOM ALERT (Same as Notification Screen) ---
+// Filters Array (Order matters for sliding)
+const FILTERS = ['All', 'Today', 'Week', 'Month', 'Year'];
+
+// --- 1. STATIC EXPENSE CARD (No Entrance Animation) ---
+const ExpenseCard = ({ item, colors, currency, isOpen, toggleExpand, onEdit, onDelete, filter }) => {
+  
+  // --- SMART ICON LOGIC ---
+  const renderLeftBox = () => {
+    const isTodayFilter = filter === 'Today' || filter === 'Day';
+    const isWeekFilter = filter === 'Week' || filter === '7 Days';
+
+    if (isTodayFilter) {
+      const iconMap = {
+        'Food': 'silverware-fork-knife', 'Travel': 'car', 'Bills': 'file-document-outline',
+        'Shopping': 'shopping', 'Health': 'medical-bag', 'Other': 'dots-horizontal',
+        'Entertainment': 'movie-open', 'Education': 'school', 'Investment': 'chart-line'
+      };
+      const iconName = iconMap[item.category] || 'cash';
+      return <IconButton icon={iconName} size={24} iconColor={colors.text} style={{ margin: 0 }} />;
+    }
+
+    const dateObj = new Date(item.date);
+    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+    const dateNum = dateObj.getDate();
+
+    if (isWeekFilter) return <Text style={[styles.dateTextBig, { color: colors.text }]}>{dayName}</Text>;
+
+    return (
+      <View style={{ alignItems: 'center' }}>
+        <Text style={[styles.dateTextNum, { color: colors.text }]}>{dateNum}</Text>
+        <Text style={[styles.dateTextDay, { color: colors.textSec }]}>{dayName}</Text>
+      </View>
+    );
+  };
+
+  const renderIcon = () => {
+    const iconMap = {
+      'Food': 'silverware-fork-knife', 'Travel': 'car', 'Bills': 'file-document-outline',
+      'Shopping': 'shopping', 'Health': 'medical-bag', 'Other': 'dots-horizontal',
+      'Entertainment': 'movie-open', 'Education': 'school', 'Investment': 'chart-line'
+    };
+    return iconMap[item.category] || 'cash';
+  };
+
+  return (
+    <View style={{ marginBottom: 12 }}>
+        <Surface 
+            style={[
+                styles.card, 
+                { 
+                    backgroundColor: colors.surface, 
+                    borderColor: isOpen ? colors.primary : 'transparent',
+                    borderWidth: isOpen ? 1 : 0,
+                    elevation: isOpen ? 6 : 1,
+                }
+            ]} 
+        >
+            <TouchableOpacity activeOpacity={0.8} onPress={() => toggleExpand(item.id)} style={styles.cardHeader}>
+            
+            <View style={[styles.iconBox, { backgroundColor: colors.chip }]}>
+                {renderLeftBox()}
+            </View>
+
+            <View style={{flex: 1, paddingHorizontal: 12}}>
+                <Text style={[styles.itemTitle, { color: colors.text }]}>{item.name}</Text>
+                {!isOpen && (
+                        <Text style={[styles.itemCategory, { color: colors.textSec }]}>
+                        {item.category} • {(item.paymentMode === 'UPI' && item.paymentApp) ? item.paymentApp : (item.paymentMode || 'UPI')}
+                        </Text>
+                )}
+            </View>
+
+            <View style={{alignItems: 'flex-end'}}>
+                <Text style={[styles.itemAmount, { color: colors.error }]}>-{currency}{item.amount}</Text>
+                {isOpen ? (
+                    <IconButton icon="chevron-up" size={20} iconColor={colors.primary} style={{margin: 0, marginTop: 4}} />
+                ) : (
+                    <Text style={{fontSize: 10, color: colors.textSec, marginTop: 4}}>
+                        {new Date(item.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </Text>
+                )}
+            </View>
+            </TouchableOpacity>
+
+            {isOpen && (
+                <View style={styles.expandedContent}>
+                    <View style={[styles.divider, {backgroundColor: colors.border}]} />
+                    
+                    <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15}}>
+                        <View style={{flex: 1}}>
+                            <Text style={{color: colors.textSec, fontSize: 10, marginBottom: 2}}>CATEGORY</Text>
+                            <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                                <Avatar.Icon size={20} icon={renderIcon()} style={{backgroundColor: 'transparent', marginRight: 0}} color={colors.primary} />
+                                <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 13}}>{item.category}</Text>
+                            </View>
+                        </View>
+                        <View style={{flex: 1}}>
+                            <Text style={{color: colors.textSec, fontSize: 10, marginBottom: 2}}>PAYMENT</Text>
+                            <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                                <IconButton icon="credit-card-outline" size={18} iconColor={colors.primary} style={{margin:0, marginRight: 0, marginLeft: -8}} />
+                                <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 13}}>
+                                    {(item.paymentMode === 'UPI' && item.paymentApp) ? item.paymentApp : (item.paymentMode || 'UPI')}
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+
+                    <View style={{marginBottom: 15}}>
+                        <Text style={{color: colors.textSec, fontSize: 10, marginBottom: 2}}>FULL DATE</Text>
+                        <Text style={{color: colors.text, fontSize: 13, fontWeight: '500'}}>
+                            {new Date(item.date).toDateString()} at {new Date(item.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </Text>
+                    </View>
+
+                    {item.description ? (
+                    <View style={styles.noteBox}>
+                        <Text style={{color: colors.textSec, fontSize: 10, marginBottom: 4, fontWeight: 'bold'}}>NOTE</Text>
+                        <Text style={{color: colors.text, fontSize: 14, lineHeight: 20}}>{item.description}</Text>
+                    </View>
+                    ) : (
+                    <Text style={{color: colors.textSec, fontSize: 12, fontStyle: 'italic', marginBottom: 15}}>No notes added.</Text>
+                    )}
+
+                    <View style={styles.actionRow}>
+                        <Button 
+                            mode="outlined" 
+                            onPress={() => onDelete(item)} 
+                            style={{flex: 1, borderColor: colors.error, borderRadius: 12, marginRight: 10, borderWidth: 1}} 
+                            textColor={colors.error}
+                            icon="trash-can-outline"
+                        >
+                            Delete
+                        </Button>
+                        
+                        <Button 
+                            mode="contained" 
+                            onPress={() => onEdit(item)} 
+                            style={{flex: 1, borderRadius: 12}} 
+                            buttonColor={colors.primary}
+                            textColor="#FFF"
+                            icon="pencil"
+                        >
+                            Edit
+                        </Button>
+                    </View>
+                </View>
+            )}
+        </Surface>
+    </View>
+  );
+};
+
+// --- 2. EXPENSE PAGE (Vertical List) ---
+// This handles the list for a specific filter (e.g., just "Today's" list)
+const ExpensePage = ({ filter, searchQuery, sortBy, navigation, onConfirmDelete, parentExpandedId, setParentExpandedId }) => {
+  const { getFilteredExpenses, colors, currency } = useExpenses();
+  
+  // Logic to toggle expand
+  const toggleExpand = (id) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setParentExpandedId(parentExpandedId === id ? null : id);
+  };
+
+  const initialData = getFilteredExpenses(filter);
+  
+  let processedData = initialData.filter(item => {
+    const query = searchQuery.toLowerCase();
+    return item.name.toLowerCase().includes(query) || item.amount.toString().includes(query);
+  });
+
+  processedData.sort((a, b) => {
+    if (sortBy === 'HIGH') return b.amount - a.amount;
+    if (sortBy === 'LOW') return a.amount - b.amount;
+    if (sortBy === 'OLD') return new Date(a.date) - new Date(b.date);
+    return new Date(b.date) - new Date(a.date);
+  });
+
+  return (
+    <View style={{ width: width }}>
+      <FlatList
+        data={processedData}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={[styles.listContent, { paddingTop: 15 }]} 
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => (
+            <ExpenseCard 
+                item={item} 
+                colors={colors} 
+                currency={currency}
+                isOpen={parentExpandedId === item.id}
+                toggleExpand={toggleExpand}
+                onEdit={() => navigation.navigate('AddExpense', { expense: item })}
+                onDelete={onConfirmDelete}
+                filter={filter}
+            />
+        )}
+        ListEmptyComponent={<Text style={[styles.emptyText, { color: colors.textSec }]}>{searchQuery ? `No results.` : `No expenses for ${filter} ✨`}</Text>}
+      />
+    </View>
+  );
+};
+
+// --- 3. CUSTOM ALERT ---
 const CustomAlert = ({ visible, onClose, onConfirm, item, colors }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -55,47 +259,56 @@ const CustomAlert = ({ visible, onClose, onConfirm, item, colors }) => {
   );
 };
 
+// --- MAIN HOME SCREEN ---
 export default function HomeScreen({ navigation }) {
-  // 1. Get Colors & Data
   const {
-    getFilteredExpenses, deleteExpense, username,
+    getFilteredExpenses, deleteExpense, addExpense, username,
     currency, budget, getTotalSpent, colors, isDark
   } = useExpenses();
 
-  const [filter, setFilter] = useState('All');
+  const [activeFilterIndex, setActiveFilterIndex] = useState(0); // 0 = All, 1 = Today, etc.
+  const flatListRef = useRef(null); // Ref for horizontal scroll
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('RECENT');
   const [showSortModal, setShowSortModal] = useState(false);
-
-  // Expanded Card State
   const [expandedId, setExpandedId] = useState(null);
-
-  // Delete Alert State
+  
+  // Delete & Undo
   const [deleteVisible, setDeleteVisible] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
+  const [undoData, setUndoData] = useState(null);
+  const undoAnim = useRef(new Animated.Value(150)).current;
 
-  // --- 2. PHYSICS ANIMATION CONFIG ---
+  // --- FILTER CHANGE HANDLER ---
+  const handleFilterPress = (filterName) => {
+    const index = FILTERS.indexOf(filterName);
+    if (index !== -1) {
+      setActiveFilterIndex(index);
+      flatListRef.current?.scrollToIndex({ index, animated: true });
+    }
+  };
+
+  // --- SYNC SCROLL WITH TABS ---
+  const onViewableItemsChanged = useRef(({ viewableItems }) => {
+    if (viewableItems.length > 0) {
+      const index = viewableItems[0].index;
+      if (index !== null) {
+        setActiveFilterIndex(index);
+      }
+    }
+  }).current;
+
+  // --- DELETE & UNDO LOGIC ---
   const animateLayout = () => {
     LayoutAnimation.configureNext({
-      duration: 500,
-      create: { type: LayoutAnimation.Types.spring, property: LayoutAnimation.Properties.scaleXY, springDamping: 0.7 },
-      update: { type: LayoutAnimation.Types.spring, springDamping: 0.7 },
-      delete: { type: LayoutAnimation.Types.linear, property: LayoutAnimation.Properties.opacity, duration: 200 }
+        duration: 300,
+        create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+        update: { type: LayoutAnimation.Types.easeInEaseOut },
+        delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity }
     });
   };
 
-  const handleFilterChange = (newFilter) => {
-    animateLayout();
-    setFilter(newFilter);
-    setExpandedId(null);
-  };
-
-  const toggleExpand = (id) => {
-    animateLayout();
-    setExpandedId(expandedId === id ? null : id);
-  };
-
-  // --- DELETE LOGIC ---
   const confirmDelete = (item) => {
     setItemToDelete(item);
     setDeleteVisible(true);
@@ -104,67 +317,44 @@ export default function HomeScreen({ navigation }) {
   const performDelete = () => {
     if (itemToDelete) {
       setDeleteVisible(false);
-      // Wait for modal animation to finish before removing item from list
+      setUndoData(itemToDelete);
       setTimeout(() => {
           animateLayout();
           deleteExpense(itemToDelete.id);
           setItemToDelete(null);
           setExpandedId(null);
+          showUndo();
       }, 200);
     }
   };
 
-  // --- 🧠 SMART ICON / DATE LOGIC (Preserved from your code) ---
-  const renderLeftBox = (item) => {
-    const isTodayFilter = filter === 'Today' || filter === 'Day';
-    const isWeekFilter = filter === 'Week' || filter === '7 Days';
-
-    // A. TODAY: Show Category Icon
-    if (isTodayFilter) {
-      const iconMap = {
-        'Food': 'silverware-fork-knife', 'Travel': 'car', 'Bills': 'file-document-outline',
-        'Shopping': 'shopping', 'Health': 'medical-bag', 'Other': 'dots-horizontal',
-        'Entertainment': 'movie-open', 'Education': 'school', 'Investment': 'chart-line'
-      };
-      const iconName = iconMap[item.category] || 'cash';
-      return <IconButton icon={iconName} size={24} iconColor={colors.text} style={{ margin: 0 }} />;
-    }
-
-    const dateObj = new Date(item.date);
-    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-    const dateNum = dateObj.getDate();
-
-    // B. WEEK: Show Day Name (Mon, Tue)
-    if (isWeekFilter) return <Text style={[styles.dateTextBig, { color: colors.text }]}>{dayName}</Text>;
-
-    // C. MONTH/ALL: Show Date Number & Day
-    return (
-      <View style={{ alignItems: 'center' }}>
-        <Text style={[styles.dateTextNum, { color: colors.text }]}>{dateNum}</Text>
-        <Text style={[styles.dateTextDay, { color: colors.textSec }]}>{dayName}</Text>
-      </View>
-    );
+  const showUndo = () => {
+    Animated.spring(undoAnim, { toValue: 0, useNativeDriver: true }).start();
+    setTimeout(() => hideUndo(), 4000);
   };
 
-  // Process Data
-  const initialData = getFilteredExpenses(filter);
-  let processedData = initialData.filter(item => {
-    const query = searchQuery.toLowerCase();
-    return item.name.toLowerCase().includes(query) || item.amount.toString().includes(query);
-  });
+  const hideUndo = () => {
+    Animated.timing(undoAnim, { toValue: 150, duration: 300, useNativeDriver: true }).start(() => setUndoData(null));
+  };
 
-  processedData.sort((a, b) => {
-    if (sortBy === 'HIGH') return b.amount - a.amount;
-    if (sortBy === 'LOW') return a.amount - b.amount;
-    if (sortBy === 'OLD') return new Date(a.date) - new Date(b.date);
-    return new Date(b.date) - new Date(a.date);
-  });
+  const handleUndo = () => {
+    if (undoData) {
+        animateLayout();
+        addExpense(undoData);
+        hideUndo();
+    }
+  };
 
-  const totalFiltered = processedData.reduce((sum, item) => sum + item.amount, 0);
+  // Helper calculation for active page
+  const activeFilterName = FILTERS[activeFilterIndex];
+  const initialData = getFilteredExpenses(activeFilterName);
+  
+  // Calculate Totals based on ACTIVE page
+  const totalFiltered = initialData.reduce((sum, item) => sum + item.amount, 0);
   const totalGlobalSpent = getTotalSpent();
   const availableBalance = (parseFloat(budget) || 0) - totalGlobalSpent;
 
-  // --- SORT MODAL ---
+  // Sort Modal
   const SortOption = ({ label, type, icon }) => (
     <TouchableOpacity onPress={() => { setSortBy(type); setShowSortModal(false); }} style={styles.sortOption}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -200,10 +390,9 @@ export default function HomeScreen({ navigation }) {
         </View>
       </View>
 
-      {/* BALANCE CARD */}
       <View style={[styles.balanceCard, { backgroundColor: colors.surface }]}>
         <View>
-          <Text style={[styles.balanceLabel, { color: colors.textSec }]}>Spent</Text>
+          <Text style={[styles.balanceLabel, { color: colors.textSec }]}>{activeFilterName} Spent</Text>
           <Text style={[styles.balanceAmount, { color: colors.error }]}>-{currency}{totalFiltered.toLocaleString('en-IN')}</Text>
         </View>
         <View style={{ alignItems: 'flex-end' }}>
@@ -214,7 +403,6 @@ export default function HomeScreen({ navigation }) {
         </View>
       </View>
 
-      {/* SEARCH */}
       <View style={[styles.searchContainer, { backgroundColor: colors.surface }]}>
         <IconButton icon="magnify" size={20} iconColor={colors.textSec} style={{ margin: 0 }} />
         <TextInput
@@ -231,141 +419,44 @@ export default function HomeScreen({ navigation }) {
         )}
       </View>
 
-      {/* FILTER BUTTONS */}
+      {/* FILTER BUTTONS (Synced with Swipe) */}
       <Short
-        filter={filter}
-        setFilter={handleFilterChange}
+        filter={FILTERS[activeFilterIndex]}
+        setFilter={handleFilterPress}
         activeSort={sortBy}
         onSortPress={() => setShowSortModal(true)}
       />
 
-      {/* EXPENSE LIST */}
+      {/* 🚀 HORIZONTAL PAGING LIST */}
       <FlatList
-        data={processedData}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={[styles.listContent, { paddingTop: 15 }]} 
-        showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => {
-          const isOpen = expandedId === item.id;
-          
-          return (
-            <Surface 
-                style={[
-                    styles.card, 
-                    { 
-                        backgroundColor: colors.surface, 
-                        borderColor: isOpen ? colors.primary : 'transparent',
-                        borderWidth: isOpen ? 1 : 0,
-                        elevation: isOpen ? 6 : 1,
-                        transform: [{ scale: isOpen ? 1.02 : 1 }]
-                    }
-                ]} 
-            >
-              {/* HEADER (Clickable) */}
-              <TouchableOpacity activeOpacity={0.9} onPress={() => toggleExpand(item.id)} style={styles.cardHeader}>
-                
-                {/* 1. LEFT BOX (Smart Icon/Date) */}
-                <View style={[styles.iconBox, { backgroundColor: colors.chip }]}>
-                    {renderLeftBox(item)}
-                </View>
-
-                {/* 2. MIDDLE DETAILS */}
-                <View style={{flex: 1, paddingHorizontal: 12}}>
-                    <Text style={[styles.itemTitle, { color: colors.text }]}>{item.name}</Text>
-                    {!isOpen && (
-                         <Text style={[styles.itemCategory, { color: colors.textSec }]}>
-                            {item.category} • {(item.paymentMode === 'UPI' && item.paymentApp) ? item.paymentApp : (item.paymentMode || 'UPI')}
-                         </Text>
-                    )}
-                </View>
-
-                {/* 3. RIGHT AMOUNT */}
-                <View style={{alignItems: 'flex-end'}}>
-                    <Text style={[styles.itemAmount, { color: colors.error }]}>-{currency}{item.amount}</Text>
-                    {isOpen ? (
-                        <IconButton icon="chevron-up" size={20} iconColor={colors.primary} style={{margin: 0, marginTop: 4}} />
-                    ) : (
-                        <Text style={{fontSize: 10, color: colors.textSec, marginTop: 4}}>
-                            {new Date(item.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                        </Text>
-                    )}
-                </View>
-              </TouchableOpacity>
-
-              {/* EXPANDED CONTENT (Note & Actions) */}
-              {isOpen && (
-                  <View style={styles.expandedContent}>
-                      <View style={[styles.divider, {backgroundColor: colors.border}]} />
-                      
-                      {/* INFO GRID */}
-                      <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15}}>
-                          <View style={{flex: 1}}>
-                              <Text style={{color: colors.textSec, fontSize: 10, marginBottom: 2}}>CATEGORY</Text>
-                              <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 13}}>{item.category}</Text>
-                          </View>
-                          <View style={{flex: 1}}>
-                               <Text style={{color: colors.textSec, fontSize: 10, marginBottom: 2}}>PAYMENT</Text>
-                               <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 13}}>
-                                  {(item.paymentMode === 'UPI' && item.paymentApp) ? item.paymentApp : (item.paymentMode || 'UPI')}
-                               </Text>
-                          </View>
-                      </View>
-
-                      {/* FULL DATE */}
-                      <View style={{marginBottom: 15}}>
-                          <Text style={{color: colors.textSec, fontSize: 10, marginBottom: 2}}>FULL DATE</Text>
-                          <Text style={{color: colors.text, fontSize: 13, fontWeight: '500'}}>
-                              {new Date(item.date).toDateString()} at {new Date(item.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                          </Text>
-                      </View>
-
-                      {/* NOTE BOX */}
-                      {item.description ? (
-                        <View style={styles.noteBox}>
-                            <Text style={{color: colors.textSec, fontSize: 10, marginBottom: 4, fontWeight: 'bold'}}>NOTE</Text>
-                            <Text style={{color: colors.text, fontSize: 14, lineHeight: 20}}>{item.description}</Text>
-                        </View>
-                      ) : (
-                        <Text style={{color: colors.textSec, fontSize: 12, fontStyle: 'italic', marginBottom: 15}}>No notes added.</Text>
-                      )}
-
-                      {/* ACTIONS */}
-                      <View style={styles.actionRow}>
-                          <Button 
-                             mode="outlined" 
-                             onPress={() => confirmDelete(item)} 
-                             style={{flex: 1, borderColor: colors.error, borderRadius: 12, marginRight: 10, borderWidth: 1}} 
-                             textColor={colors.error}
-                             icon="trash-can-outline"
-                          >
-                             Delete
-                          </Button>
-                          
-                          <Button 
-                             mode="contained" 
-                             onPress={() => navigation.navigate('AddExpense', { expense: item })} 
-                             style={{flex: 1, borderRadius: 12}} 
-                             buttonColor={colors.primary}
-                             textColor="#FFF"
-                             icon="pencil"
-                          >
-                             Edit
-                          </Button>
-                      </View>
-                  </View>
-              )}
-            </Surface>
-          );
-        }}
-        ListEmptyComponent={<Text style={[styles.emptyText, { color: colors.textSec }]}>{searchQuery ? `No results.` : "No expenses found ✨"}</Text>}
+        ref={flatListRef}
+        data={FILTERS}
+        keyExtractor={(item) => item}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        // Sync scroll to top bar
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
+        
+        renderItem={({ item }) => (
+            <ExpensePage 
+                filter={item}
+                searchQuery={searchQuery}
+                sortBy={sortBy}
+                navigation={navigation}
+                onConfirmDelete={confirmDelete}
+                parentExpandedId={expandedId}
+                setParentExpandedId={(id) => {
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                    setExpandedId(id);
+                }}
+            />
+        )}
       />
 
       {/* AI BOT BUTTON */}
-      <TouchableOpacity
-        onPress={() => navigation.navigate('Chat')}
-        style={[styles.aiPill, { backgroundColor: colors.surface }]}
-        activeOpacity={0.8}
-      >
+      <TouchableOpacity onPress={() => navigation.navigate('Chat')} style={[styles.aiPill, { backgroundColor: colors.surface }]} activeOpacity={0.8}>
         <Avatar.Icon size={24} icon="robot" style={{ backgroundColor: 'transparent', margin: 0 }} color={colors.primary} />
         <Text style={[styles.aiText, { color: colors.text }]}>Ask FinBot</Text>
       </TouchableOpacity>
@@ -386,7 +477,6 @@ export default function HomeScreen({ navigation }) {
         </Modal>
       </Portal>
 
-      {/* CUSTOM ALERT (Outside Portal for Animation) */}
       <CustomAlert 
         visible={deleteVisible} 
         onClose={() => setDeleteVisible(false)} 
@@ -394,6 +484,19 @@ export default function HomeScreen({ navigation }) {
         item={itemToDelete}
         colors={colors}
       />
+
+      {/* UNDO BAR */}
+      <Animated.View style={[styles.undoContainer, { transform: [{ translateY: undoAnim }] }]}>
+          <Surface style={[styles.undoBar, { backgroundColor: '#333' }]} elevation={4}>
+              <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                  <IconButton icon="trash-can-outline" size={20} iconColor="#FFF" />
+                  <Text style={{color: '#FFF', fontWeight: 'bold'}}>Deleted.</Text>
+              </View>
+              <TouchableOpacity onPress={handleUndo} style={{padding: 10}}>
+                  <Text style={{color: colors.primary, fontWeight: 'bold', fontSize: 16}}>UNDO</Text>
+              </TouchableOpacity>
+          </Surface>
+      </Animated.View>
 
     </SafeAreaView>
   );
@@ -414,14 +517,11 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 16, paddingVertical: 8, marginLeft: 5 },
   listContent: { paddingHorizontal: 24, paddingBottom: 100 },
 
-  // CARD STYLES
-  card: { borderRadius: 16, marginBottom: 12, overflow: 'hidden' },
+  card: { borderRadius: 16, overflow: 'hidden' }, 
   cardHeader: { flexDirection: 'row', alignItems: 'center', padding: 16 },
   
-  // Icon Box size matches original logic
   iconBox: { borderRadius: 12, width: 48, height: 48, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
   
-  // Date/Icon Text Styles (from original code)
   dateTextBig: { fontSize: 14, fontWeight: 'bold' },
   dateTextNum: { fontSize: 16, fontWeight: 'bold', lineHeight: 18 },
   dateTextDay: { fontSize: 10, fontWeight: '600', textTransform: 'uppercase' },
@@ -442,7 +542,7 @@ const styles = StyleSheet.create({
   modalContainer: { padding: 24, margin: 24, borderRadius: 20, elevation: 5 },
   modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
   modalBtn: { borderRadius: 12, marginTop: 15 },
-
+  
   // CUSTOM ALERT
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 40 },
   alertBox: { width: '100%', borderRadius: 28, padding: 24, alignItems: 'center' },
@@ -476,5 +576,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     marginLeft: 6,
-  }
+  },
+  
+  undoContainer: { position: 'absolute', bottom: 30, left: 20, right: 20, alignItems: 'center' },
+  undoBar: { width: '100%', borderRadius: 16, padding: 5, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 20 },
 });
