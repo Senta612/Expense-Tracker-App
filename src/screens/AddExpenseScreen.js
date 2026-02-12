@@ -1,15 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, Platform, KeyboardAvoidingView } from 'react-native';
-import { Button, Text, Modal, Portal, IconButton } from 'react-native-paper';
+import { Button, Text, IconButton, SegmentedButtons } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useExpenses } from '../context/ExpenseContext';
+import AmountInput from '../components/AmountInput'; // <--- Import the new component
 
 export default function AddExpenseScreen({ navigation, route }) {
-  const { addExpense, editExpense, categories, paymentModes, upiApps, currency, budget, updateBudget, getTotalSpent, colors, showAlert } = useExpenses();
+  const { addExpense, editExpense, categories, paymentModes, upiApps, currency, getBalanceData, colors, showAlert } = useExpenses();
   
   const existingExpense = route.params?.expense;
   const isEditing = !!existingExpense;
+
+  // --- 1. NEW STATE: Transaction Type ('expense' or 'income') ---
+  const [transactionType, setTransactionType] = useState('expense'); 
 
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
@@ -20,10 +24,6 @@ export default function AddExpenseScreen({ navigation, route }) {
   const [paymentApp, setPaymentApp] = useState(null);
   const [showPicker, setShowPicker] = useState(false);
 
-  // Budget Modal
-  const [showBudgetModal, setShowBudgetModal] = useState(false);
-  const [tempBudget, setTempBudget] = useState(budget);
-
   useEffect(() => {
     if (existingExpense) {
       setName(existingExpense.name);
@@ -33,37 +33,42 @@ export default function AddExpenseScreen({ navigation, route }) {
       setDate(new Date(existingExpense.date));
       setPaymentMode(existingExpense.paymentMode || 'UPI');
       setPaymentApp(existingExpense.paymentApp || null);
+      setTransactionType(existingExpense.type || 'expense'); // Load Type
     }
   }, [existingExpense]);
 
   const handleSave = () => {
     if (!name || !amount) { showAlert("Missing Info", "Please enter a title and amount."); return; }
+    
     const payload = {
       id: existingExpense ? existingExpense.id : Date.now().toString(),
+      type: transactionType, // 'expense' or 'income'
       name,
       amount: parseFloat(amount),
-      category,
+      // Auto-set category for income to keep reports clean
+      category: transactionType === 'income' ? 'Income' : category, 
       description,
       date: date.toISOString(),
       paymentMode,
       paymentApp: paymentMode === 'UPI' ? paymentApp : null,
     };
+
     if (isEditing) editExpense(payload); else addExpense(payload);
     navigation.goBack();
   };
 
-  const handleSaveBudget = () => {
-      updateBudget(tempBudget);
-      setShowBudgetModal(false);
-  };
-
   const scrollViewRef = useRef();
-  const currentTotal = getTotalSpent();
-  const currentBudget = parseFloat(budget) || 0;
-  const expenseAmount = parseFloat(amount) || 0;
-  const remaining = currentBudget - currentTotal;
-  const remainingAfter = remaining - expenseAmount;
+  
+  // --- 2. LIVE CALCULATION LOGIC ---
+  const { availableBalance } = getBalanceData(); // Get current actual balance
+  const enteredAmount = parseFloat(amount) || 0;
+  
+  // If Expense: Balance goes DOWN (-). If Income: Balance goes UP (+).
+  const remainingAfter = transactionType === 'expense' 
+      ? availableBalance - enteredAmount 
+      : availableBalance + enteredAmount;
 
+  // Helper Component for UI consistency
   const Label = ({ icon, text }) => (
     <View style={styles.labelRow}>
         <IconButton icon={icon} size={18} iconColor={colors.textSec} style={{margin:0, marginRight: 5}} />
@@ -71,64 +76,86 @@ export default function AddExpenseScreen({ navigation, route }) {
     </View>
   );
 
+  // Dynamic Theme Color (Red for Expense, Green for Income)
+  const activeColor = transactionType === 'expense' ? colors.error : '#00C853';
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'left', 'right']}>
       
-      <Portal>
-          <Modal visible={showBudgetModal} onDismiss={() => setShowBudgetModal(false)} contentContainerStyle={[styles.modalContainer, { backgroundColor: colors.surface }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Set Monthly Wallet</Text>
-              <TextInput 
-                  value={tempBudget} 
-                  onChangeText={setTempBudget} 
-                  keyboardType="numeric"
-                  style={[styles.modalInput, { backgroundColor: colors.inputBg, color: colors.text }]}
-                  placeholder="e.g. 10000"
-                  placeholderTextColor={colors.textSec}
-              />
-              <Button mode="contained" onPress={handleSaveBudget} buttonColor={colors.primary} textColor="#FFF">Save Limit</Button>
-          </Modal>
-      </Portal>
-
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView ref={scrollViewRef} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           
+          {/* HEADER (Removed Wallet Button) */}
           <View style={styles.header}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
               <IconButton icon="close" size={24} iconColor={colors.text} style={{margin: 0}} />
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>{isEditing ? 'Edit' : 'Add'} Expense</Text>
-            
-            <TouchableOpacity onPress={() => setShowBudgetModal(true)} style={[styles.walletBtn, { backgroundColor: colors.chip }]}>
-                <IconButton icon="wallet-outline" size={16} iconColor={colors.text} style={{margin: 0, marginRight: 4}} />
-                <Text style={[styles.walletBtnText, { color: colors.text }]}>{currency}{budget}</Text>
-            </TouchableOpacity>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>{isEditing ? 'Edit' : 'New'} Transaction</Text>
+            <View style={{width: 40}} /> 
           </View>
 
-          <View style={styles.amountContainer}>
-            <Text style={[styles.currencySymbol, { color: colors.text }]}>{currency}</Text>
-            <TextInput
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="numeric"
-              placeholder="0"
-              placeholderTextColor={colors.textSec}
-              style={[styles.amountInput, { color: colors.text }]}
+          {/* TOGGLE SWITCH */}
+          <View style={styles.toggleContainer}>
+            <SegmentedButtons
+                value={transactionType}
+                onValueChange={setTransactionType}
+                buttons={[
+                { 
+                    value: 'expense', 
+                    label: 'Expense', 
+                    icon: 'arrow-up-bold',
+                    style: { backgroundColor: transactionType === 'expense' ? colors.error + '15' : 'transparent', borderColor: colors.border }
+                },
+                { 
+                    value: 'income', 
+                    label: 'Income', 
+                    icon: 'arrow-down-bold',
+                    style: { backgroundColor: transactionType === 'income' ? '#00C85315' : 'transparent', borderColor: colors.border } 
+                },
+                ]}
+                theme={{ colors: { secondaryContainer: 'transparent', onSecondaryContainer: activeColor, outline: colors.border } }}
             />
           </View>
+
+          {/* AMOUNT INPUT COMPONENT */}
+          <AmountInput 
+            amount={amount} 
+            setAmount={setAmount} 
+            currency={currency} 
+            isIncome={transactionType === 'income'}
+            color={transactionType === 'income' ? '#00C853' : colors.text} // Green for income, Default for expense
+          />
           
+          {/* LIVE BALANCE PREVIEW */}
           <View style={styles.liveCalc}>
-            <Text style={{color: colors.textSec}}>Available: {currency}{remaining}</Text>
+            <Text style={{color: colors.textSec}}>Balance: {currency}{availableBalance.toLocaleString('en-IN')}</Text>
             <Text style={{color: colors.textSec}}> → </Text>
-            <Text style={{color: remainingAfter < 0 ? colors.error : colors.success, fontWeight: 'bold'}}>
-                After: {currency}{remainingAfter}
+            <Text style={{color: activeColor, fontWeight: 'bold'}}>
+                After: {currency}{remainingAfter.toLocaleString('en-IN')}
             </Text>
           </View>
 
+          {/* FORM CONTAINER */}
           <View style={[styles.formSection, { backgroundColor: colors.surface }]}>
+            
             <Label icon="format-title" text="Title" />
-            <TextInput style={[styles.simpleInput, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]} placeholder="e.g. Starbucks" placeholderTextColor={colors.textSec} value={name} onChangeText={setName} />
+            <TextInput style={[styles.simpleInput, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]} placeholder={transactionType === 'income' ? "e.g. Salary, Gift" : "e.g. Starbucks"} placeholderTextColor={colors.textSec} value={name} onChangeText={setName} />
 
-            <Label icon="credit-card-outline" text="Payment Method" />
+            {/* HIDE CATEGORY IF INCOME */}
+            {transactionType === 'expense' && (
+                <>
+                    <Label icon="shape-outline" text="Category" />
+                    <View style={styles.chipContainer}>
+                    {categories.map((cat) => (
+                        <TouchableOpacity key={cat} onPress={() => setCategory(cat)} style={[styles.chip, category === cat ? { backgroundColor: colors.primary } : { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border }]}>
+                        <Text style={[styles.chipText, category === cat ? { color: '#FFF' } : { color: colors.text }]}>{cat}</Text>
+                        </TouchableOpacity>
+                    ))}
+                    </View>
+                </>
+            )}
+
+            <Label icon="credit-card-outline" text={transactionType === 'income' ? "Received Via" : "Payment Method"} />
             <View style={styles.chipContainer}>
               {paymentModes.map((mode) => (
                 <TouchableOpacity key={mode} onPress={() => { setPaymentMode(mode); setPaymentApp(null); }} style={[styles.chip, paymentMode === mode ? { backgroundColor: colors.primary } : { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border }]}>
@@ -149,15 +176,6 @@ export default function AddExpenseScreen({ navigation, route }) {
               </View>
             )}
 
-            <Label icon="shape-outline" text="Category" />
-            <View style={styles.chipContainer}>
-              {categories.map((cat) => (
-                <TouchableOpacity key={cat} onPress={() => setCategory(cat)} style={[styles.chip, category === cat ? { backgroundColor: colors.primary } : { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border }]}>
-                  <Text style={[styles.chipText, category === cat ? { color: '#FFF' } : { color: colors.text }]}>{cat}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
             <Label icon="calendar-month-outline" text="Date" />
             <TouchableOpacity onPress={() => setShowPicker(true)} style={[styles.dateRow, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
               <Text style={[styles.dateText, { color: colors.text }]}>{date.toDateString()}</Text>
@@ -168,7 +186,16 @@ export default function AddExpenseScreen({ navigation, route }) {
             <Label icon="note-text-outline" text="Description (Optional)" />
             <TextInput style={[styles.simpleInput, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border, height: 60, textAlignVertical: 'top' }]} placeholder="Add notes..." placeholderTextColor={colors.textSec} value={description} onChangeText={setDescription} multiline onFocus={() => setTimeout(() => scrollViewRef.current.scrollToEnd({ animated: true }), 100)} />
 
-            <Button mode="contained" onPress={handleSave} style={[styles.saveBtn, { backgroundColor: colors.primary }]} textColor="#FFF" labelStyle={{ fontSize: 16, fontWeight: 'bold' }}>Save Expense</Button>
+            {/* SAVE BUTTON (Changes color based on type) */}
+            <Button 
+                mode="contained" 
+                onPress={handleSave} 
+                style={[styles.saveBtn, { backgroundColor: activeColor }]} 
+                textColor="#FFF" 
+                labelStyle={{ fontSize: 16, fontWeight: 'bold' }}
+            >
+                {transactionType === 'income' ? 'Add to Wallet' : 'Save Expense'}
+            </Button>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -181,12 +208,11 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 15, paddingTop: 5 },
   iconBtn: { padding: 5 },
   headerTitle: { fontSize: 18, fontWeight: '700' },
-  walletBtn: { flexDirection: 'row', alignItems: 'center', paddingRight: 12, paddingLeft: 0, borderRadius: 20 },
-  walletBtnText: { fontSize: 13, fontWeight: 'bold' },
-  amountContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 10, marginBottom: 5 },
-  currencySymbol: { fontSize: 32, fontWeight: 'bold', marginRight: 5 },
-  amountInput: { fontSize: 32, fontWeight: 'bold', minWidth: 80, textAlign: 'center' },
+  
+  toggleContainer: { marginHorizontal: 40, marginTop: 15 }, // Centered Toggle
+
   liveCalc: { flexDirection: 'row', justifyContent: 'center', marginBottom: 20 },
+  
   formSection: { borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, flex: 1 },
   labelRow: { flexDirection: 'row', alignItems: 'center', marginTop: 15, marginBottom: 5 },
   label: { fontSize: 13, fontWeight: 'bold', textTransform: 'uppercase' },
@@ -200,7 +226,4 @@ const styles = StyleSheet.create({
   dateRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderRadius: 12, borderWidth: 1 },
   dateText: { fontSize: 15, fontWeight: '500' },
   saveBtn: { marginTop: 30, paddingVertical: 6, borderRadius: 16, elevation: 2, marginBottom: 20 },
-  modalContainer: { padding: 20, margin: 40, borderRadius: 12 },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
-  modalInput: { marginBottom: 15, fontSize: 18, padding: 10, borderRadius: 8 }
 });

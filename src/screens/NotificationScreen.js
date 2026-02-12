@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Modal, Platform, LayoutAnimation, UIManager, Animated, Keyboard, Vibration, Dimensions } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Modal, Platform, LayoutAnimation, UIManager, Animated, Keyboard, Vibration, Dimensions, Alert, Linking } from 'react-native';
 import { Text, Switch, IconButton, Button, TextInput, Surface, Avatar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
@@ -269,8 +269,28 @@ export default function NotificationScreen({ navigation }) {
   const [undoData, setUndoData] = useState(null);
   const undoAnim = useRef(new Animated.Value(150)).current;
 
-  // --- 💾 LOAD & SAVE ---
-  useEffect(() => { loadReminders(); }, []);
+  // --- 🔒 PERMISSION CHECK ---
+  useEffect(() => {
+    checkPermissions();
+    loadReminders();
+  }, []);
+
+  const checkPermissions = async () => {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') {
+      const { status: newStatus } = await Notifications.requestPermissionsAsync();
+      if (newStatus !== 'granted') {
+        Alert.alert(
+          "Permission Required",
+          "Notifications are disabled. Enable them in settings to get reminders.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Open Settings", onPress: () => Linking.openSettings() }
+          ]
+        );
+      }
+    }
+  };
 
   const loadReminders = async () => {
     try {
