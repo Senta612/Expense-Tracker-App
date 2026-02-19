@@ -45,8 +45,11 @@ export const ExpenseProvider = ({ children }) => {
   const [currency, setCurrency] = useState('₹');
   
   // BUDGET STATE
-  const [budget, setBudget] = useState('0'); // Base amount
-  const [budgetPeriod, setBudgetPeriod] = useState('Monthly'); // 'Weekly', 'Monthly', 'Yearly'
+  const [budget, setBudget] = useState('0'); 
+  const [budgetPeriod, setBudgetPeriod] = useState('Monthly'); 
+
+  // ✨ NEW: FIRST LAUNCH STATE
+  const [isFirstLaunch, setIsFirstLaunch] = useState(false);
 
   // --- 3. UI STATE ---
   const [alertConfig, setAlertConfig] = useState({ visible: false, title: '', msg: '', onConfirm: null });
@@ -65,6 +68,10 @@ export const ExpenseProvider = ({ children }) => {
 
   const loadData = async () => {
     try {
+      // ✨ Check if it is the first time opening the app
+      const hasSeenTutorial = await AsyncStorage.getItem('hasSeenTutorial');
+      if (!hasSeenTutorial) setIsFirstLaunch(true);
+
       const storedExpenses = await AsyncStorage.getItem('expenses');
       if (storedExpenses) setExpenses(JSON.parse(storedExpenses));
 
@@ -97,6 +104,12 @@ export const ExpenseProvider = ({ children }) => {
     }
   };
 
+  // ✨ Function to complete tutorial
+  const completeTutorial = async () => {
+    setIsFirstLaunch(false);
+    await AsyncStorage.setItem('hasSeenTutorial', 'true');
+  };
+
   // --- 6. UPDATE LOGIC ---
   const CURRENT_APP_VERSION = "1.0.0"; 
   const UPDATE_API_URL = "https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO/main/version.json";
@@ -113,10 +126,7 @@ export const ExpenseProvider = ({ children }) => {
   };
 
   // --- 7. ACTIONS (CRUD) ---
-
-  // Add Expense or Income
   const addExpense = async (newExpense) => {
-    // Force type to exist so Income/Expense math works
     const expenseWithType = { 
         ...newExpense, 
         type: newExpense.type || 'expense' 
@@ -141,6 +151,9 @@ export const ExpenseProvider = ({ children }) => {
   const clearAllData = async () => {
     setExpenses([]);
     await AsyncStorage.removeItem('expenses');
+    // Reset tutorial on data clear so they see it again if they reset the app
+    setIsFirstLaunch(true); 
+    await AsyncStorage.removeItem('hasSeenTutorial');
   };
 
   // --- 8. SETTINGS ACTIONS ---
@@ -149,7 +162,6 @@ export const ExpenseProvider = ({ children }) => {
   const updateUsername = async (name) => { setUsername(name); await AsyncStorage.setItem('username', name); };
   const updateBudget = async (amount) => { setBudget(amount); await AsyncStorage.setItem('budget', amount); };
   
-  // Custom updater for Budget + Period from HomeScreen
   const updateBudgetConfig = async (amount, period) => { 
     setBudget(amount); 
     setBudgetPeriod(period);
@@ -170,7 +182,6 @@ export const ExpenseProvider = ({ children }) => {
   const closeAlert = () => setAlertConfig({ ...alertConfig, visible: false });
 
   // --- 11. HELPERS & MATH ---
-
   const getFilteredExpenses = (timeRange) => {
     if (!timeRange || timeRange === 'All') return expenses;
     const now = new Date();
@@ -182,23 +193,21 @@ export const ExpenseProvider = ({ children }) => {
     return expenses.filter(e => new Date(e.date) >= cutoff);
   };
 
-  // ✅ SMART TIME-BOUND WALLET LOGIC
   const getBalanceData = () => {
     const now = new Date();
     let cutoff = new Date();
 
     if (budgetPeriod === 'Weekly') {
-        cutoff.setDate(now.getDate() - now.getDay()); // Start of this week
+        cutoff.setDate(now.getDate() - now.getDay()); 
         cutoff.setHours(0, 0, 0, 0);
     } else if (budgetPeriod === 'Monthly') {
-        cutoff = new Date(now.getFullYear(), now.getMonth(), 1); // Start of this month
+        cutoff = new Date(now.getFullYear(), now.getMonth(), 1); 
     } else if (budgetPeriod === 'Yearly') {
-        cutoff = new Date(now.getFullYear(), 0, 1); // Start of this year
+        cutoff = new Date(now.getFullYear(), 0, 1); 
     } else {
         cutoff = new Date(0); 
     }
 
-    // Get ONLY transactions from the current active period
     const currentPeriodItems = expenses.filter(e => new Date(e.date) >= cutoff);
 
     const spentThisPeriod = currentPeriodItems
@@ -215,7 +224,6 @@ export const ExpenseProvider = ({ children }) => {
     return { spentThisPeriod, incomeThisPeriod, availableBalance, budgetPeriod };
   };
 
-  // Generic total spent (Filters out income so charts don't break)
   const getTotalSpent = () => {
     return expenses
         .filter(item => item.type === 'expense' || !item.type)
@@ -224,19 +232,17 @@ export const ExpenseProvider = ({ children }) => {
 
   return (
     <ExpenseContext.Provider value={{
-      // State
       expenses, username, currency, budget, budgetPeriod,
       categories, paymentModes, upiApps,
       themeMode, isDark, colors,
       alertConfig, showAlert, closeAlert,
       updateAvailable, setUpdateAvailable,
+      isFirstLaunch, // ✨ Exported
 
-      // Actions
       updateUsername, updateCurrency, updateBudget, updateBudgetConfig, updateTheme,
       addExpense, deleteExpense, editExpense, clearAllData,
-      addCategory, removeCategory, addPaymentMode, removePaymentMode, addUpiApp, removeUpiApp,
+      addCategory, removeCategory, addPaymentMode, removePaymentMode, addUpiApp, removeUpiApp, completeTutorial, // ✨ Exported
 
-      // Helpers
       getFilteredExpenses, getTotalSpent, getBalanceData
     }}>
       {children}
