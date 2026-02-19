@@ -43,7 +43,10 @@ export const ExpenseProvider = ({ children }) => {
   const [expenses, setExpenses] = useState([]);
   const [username, setUsername] = useState('User');
   const [currency, setCurrency] = useState('₹');
-  const [budget, setBudget] = useState('0'); // Acts as "Opening Balance"
+  
+  // BUDGET STATE
+  const [budget, setBudget] = useState('0'); // Base amount
+  const [budgetPeriod, setBudgetPeriod] = useState('Monthly'); // 'Weekly', 'Monthly', 'Yearly'
 
   // --- 3. UI STATE ---
   const [alertConfig, setAlertConfig] = useState({ visible: false, title: '', msg: '', onConfirm: null });
@@ -73,6 +76,9 @@ export const ExpenseProvider = ({ children }) => {
 
       const storedBudget = await AsyncStorage.getItem('budget');
       if (storedBudget) setBudget(storedBudget);
+
+      const storedPeriod = await AsyncStorage.getItem('budgetPeriod');
+      if (storedPeriod) setBudgetPeriod(storedPeriod);
 
       const storedTheme = await AsyncStorage.getItem('themeMode');
       if (storedTheme) setThemeMode(storedTheme);
@@ -109,13 +115,13 @@ export const ExpenseProvider = ({ children }) => {
   // --- 7. ACTIONS (CRUD) ---
 
   // Add Expense or Income
-  const addExpense = async (expense) => {
-    const newExpense = { 
-        ...expense, 
-        // Ensure type exists (default to 'expense' for old data compatibility)
-        type: expense.type || 'expense' 
+  const addExpense = async (newExpense) => {
+    // Force type to exist so Income/Expense math works
+    const expenseWithType = { 
+        ...newExpense, 
+        type: newExpense.type || 'expense' 
     };
-    const updated = [newExpense, ...expenses];
+    const updated = [expenseWithType, ...expenses];
     setExpenses(updated);
     await AsyncStorage.setItem('expenses', JSON.stringify(updated));
   };
@@ -126,7 +132,7 @@ export const ExpenseProvider = ({ children }) => {
     await AsyncStorage.setItem('expenses', JSON.stringify(updated));
   };
 
-  const updateExpense = async (updatedExpense) => {
+  const editExpense = async (updatedExpense) => {
     const updated = expenses.map(e => e.id === updatedExpense.id ? updatedExpense : e);
     setExpenses(updated);
     await AsyncStorage.setItem('expenses', JSON.stringify(updated));
@@ -139,9 +145,17 @@ export const ExpenseProvider = ({ children }) => {
 
   // --- 8. SETTINGS ACTIONS ---
   const updateTheme = async (mode) => { setThemeMode(mode); await AsyncStorage.setItem('themeMode', mode); };
-  const updateBudget = async (amount) => { setBudget(amount); await AsyncStorage.setItem('budget', amount); };
   const updateCurrency = async (symbol) => { setCurrency(symbol); await AsyncStorage.setItem('currency', symbol); };
   const updateUsername = async (name) => { setUsername(name); await AsyncStorage.setItem('username', name); };
+  const updateBudget = async (amount) => { setBudget(amount); await AsyncStorage.setItem('budget', amount); };
+  
+  // Custom updater for Budget + Period from HomeScreen
+  const updateBudgetConfig = async (amount, period) => { 
+    setBudget(amount); 
+    setBudgetPeriod(period);
+    await AsyncStorage.setItem('budget', amount); 
+    await AsyncStorage.setItem('budgetPeriod', period); 
+  };
 
   // --- 9. LIST MANAGEMENT ---
   const addCategory = async (cat) => { if (!categories.includes(cat)) { const u = [...categories, cat]; setCategories(u); await AsyncStorage.setItem('categories', JSON.stringify(u)); } };
@@ -157,7 +171,6 @@ export const ExpenseProvider = ({ children }) => {
 
   // --- 11. HELPERS & MATH ---
 
-  // Filter Logic (Time Ranges)
   const getFilteredExpenses = (timeRange) => {
     if (!timeRange || timeRange === 'All') return expenses;
     const now = new Date();
@@ -166,34 +179,43 @@ export const ExpenseProvider = ({ children }) => {
     else if (timeRange === 'Week' || timeRange === '7 Days') { cutoff.setDate(now.getDate() - 7); cutoff.setHours(0, 0, 0, 0); }
     else if (timeRange === 'Month' || timeRange === '30 Days') { cutoff.setMonth(now.getMonth() - 1); cutoff.setHours(0, 0, 0, 0); }
     else if (timeRange === 'Year') { cutoff.setFullYear(now.getFullYear() - 1); cutoff.setHours(0, 0, 0, 0); }
-    
-    // Filter by date AND exclude Income entries from the expense list view if desired
-    // (Usually you want to see everything in "All", but maybe filter out income for "Spending" charts)
     return expenses.filter(e => new Date(e.date) >= cutoff);
   };
 
-  // ✅ NEW WALLET LOGIC
+  // ✅ SMART TIME-BOUND WALLET LOGIC
   const getBalanceData = () => {
-    // 1. Calculate Total Expenses (Only items with type 'expense')
-    const totalSpent = expenses
-        .filter(item => item.type === 'expense' || !item.type) // !type covers old data
+    const now = new Date();
+    let cutoff = new Date();
+
+    if (budgetPeriod === 'Weekly') {
+        cutoff.setDate(now.getDate() - now.getDay()); // Start of this week
+        cutoff.setHours(0, 0, 0, 0);
+    } else if (budgetPeriod === 'Monthly') {
+        cutoff = new Date(now.getFullYear(), now.getMonth(), 1); // Start of this month
+    } else if (budgetPeriod === 'Yearly') {
+        cutoff = new Date(now.getFullYear(), 0, 1); // Start of this year
+    } else {
+        cutoff = new Date(0); 
+    }
+
+    // Get ONLY transactions from the current active period
+    const currentPeriodItems = expenses.filter(e => new Date(e.date) >= cutoff);
+
+    const spentThisPeriod = currentPeriodItems
+        .filter(item => item.type === 'expense' || !item.type)
         .reduce((sum, item) => sum + parseFloat(item.amount), 0);
 
-    // 2. Calculate Total Income (Only items with type 'income')
-    const totalIncome = expenses
+    const incomeThisPeriod = currentPeriodItems
         .filter(item => item.type === 'income')
         .reduce((sum, item) => sum + parseFloat(item.amount), 0);
 
-    // 3. Opening Balance (Set in Settings)
-    const initialBudget = parseFloat(budget) || 0;
+    const baseBudget = parseFloat(budget) || 0;
+    const availableBalance = (baseBudget + incomeThisPeriod) - spentThisPeriod;
 
-    // 4. Final Available Balance
-    const availableBalance = (initialBudget + totalIncome) - totalSpent;
-
-    return { totalSpent, totalIncome, availableBalance };
+    return { spentThisPeriod, incomeThisPeriod, availableBalance, budgetPeriod };
   };
 
-  // Legacy helper for simple total (Expenses only)
+  // Generic total spent (Filters out income so charts don't break)
   const getTotalSpent = () => {
     return expenses
         .filter(item => item.type === 'expense' || !item.type)
@@ -203,15 +225,15 @@ export const ExpenseProvider = ({ children }) => {
   return (
     <ExpenseContext.Provider value={{
       // State
-      expenses, username, currency, budget,
+      expenses, username, currency, budget, budgetPeriod,
       categories, paymentModes, upiApps,
       themeMode, isDark, colors,
       alertConfig, showAlert, closeAlert,
       updateAvailable, setUpdateAvailable,
 
       // Actions
-      updateUsername, updateCurrency, updateBudget, updateTheme,
-      addExpense, deleteExpense, updateExpense, clearAllData,
+      updateUsername, updateCurrency, updateBudget, updateBudgetConfig, updateTheme,
+      addExpense, deleteExpense, editExpense, clearAllData,
       addCategory, removeCategory, addPaymentMode, removePaymentMode, addUpiApp, removeUpiApp,
 
       // Helpers

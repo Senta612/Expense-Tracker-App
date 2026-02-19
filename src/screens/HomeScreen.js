@@ -1,26 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, StatusBar, TextInput, LayoutAnimation, Platform, UIManager, Animated, Modal, Dimensions } from 'react-native';
-import { Text, FAB, IconButton, Surface, Portal, Button, Avatar } from 'react-native-paper';
+import { View, FlatList, StyleSheet, TouchableOpacity, StatusBar, TextInput, LayoutAnimation, Platform, UIManager, Animated, Modal, Dimensions, Easing } from 'react-native';
+import { Text, FAB, IconButton, Surface, Portal, Button, Avatar, SegmentedButtons } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useExpenses } from '../context/ExpenseContext';
 import Short from '../components/Short';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
-// Enable Physics Animations
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
 const FILTERS = ['All', 'Today', 'Week', 'Month', 'Year'];
 
-// --- 1. EXPENSE CARD (Logic Updated for Income/Expense) ---
+// --- 1. EXPENSE CARD ---
 const ExpenseCard = ({ item, index, colors, currency, isOpen, toggleExpand, onEdit, onDelete, filter }) => {
   const startX = -width; 
   const slideAnim = useRef(new Animated.Value(startX)).current; 
   const fadeAnim = useRef(new Animated.Value(0)).current; 
-
-  const isIncome = item.type === 'income'; // Check type
+  const isIncome = item.type === 'income';
 
   useEffect(() => {
     Animated.parallel([
@@ -33,16 +31,13 @@ const ExpenseCard = ({ item, index, colors, currency, isOpen, toggleExpand, onEd
     const isTodayFilter = filter === 'Today' || filter === 'Day';
     const isWeekFilter = filter === 'Week' || filter === '7 Days';
 
-    // If Income, always show Icon
-    if (isIncome) {
-        return <IconButton icon="wallet-plus" size={24} iconColor={colors.success} style={{ margin: 0 }} />;
-    }
-
+    if (isIncome) return <IconButton icon="wallet-plus" size={24} iconColor={colors.success} style={{ margin: 0 }} />;
     if (isTodayFilter) {
       const iconMap = { 'Food': 'silverware-fork-knife', 'Travel': 'car', 'Bills': 'file-document-outline', 'Shopping': 'shopping', 'Health': 'medical-bag', 'Other': 'dots-horizontal', 'Entertainment': 'movie-open', 'Education': 'school', 'Investment': 'chart-line' };
       const iconName = iconMap[item.category] || 'cash';
       return <IconButton icon={iconName} size={24} iconColor={colors.text} style={{ margin: 0 }} />;
     }
+    
     const dateObj = new Date(item.date);
     const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
     const dateNum = dateObj.getDate();
@@ -73,7 +68,6 @@ const ExpenseCard = ({ item, index, colors, currency, isOpen, toggleExpand, onEd
                     {!isOpen && <Text style={[styles.itemCategory, { color: colors.textSec }]}>{item.category} • {item.paymentMode || 'UPI'}</Text>}
                 </View>
                 <View style={{alignItems: 'flex-end'}}>
-                    {/* COLOR LOGIC: Green for Income, Red for Expense */}
                     <Text style={[styles.itemAmount, { color: isIncome ? colors.success : colors.error }]}>
                         {isIncome ? '+' : '-'}{currency}{item.amount}
                     </Text>
@@ -130,7 +124,6 @@ const ExpensePage = ({ filter, searchQuery, sortBy, navigation, onConfirmDelete,
   };
   
   const initialData = getFilteredExpenses(filter);
-  
   let processedData = initialData.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.amount.toString().includes(searchQuery.toLowerCase()));
   
   processedData.sort((a, b) => {
@@ -156,7 +149,7 @@ const ExpensePage = ({ filter, searchQuery, sortBy, navigation, onConfirmDelete,
   );
 };
 
-// --- 3. POPUP MENU ---
+// --- 3. POPUP MENU (Sort Menu) ---
 const PopupMenu = ({ visible, onClose, children, position, colors }) => {
     const scaleAnim = useRef(new Animated.Value(0)).current; 
     const fadeAnim = useRef(new Animated.Value(0)).current; 
@@ -201,7 +194,38 @@ const PopupMenu = ({ visible, onClose, children, position, colors }) => {
     );
 };
 
-// --- 4. ALERT MODAL ---
+// --- 4. BOTTOM SHEET (For Wallet Config) ---
+const BottomSheet = ({ visible, onClose, children, title, colors }) => {
+    const slideAnim = useRef(new Animated.Value(height)).current; 
+    const [showModal, setShowModal] = useState(visible);
+  
+    useEffect(() => {
+      if (visible) {
+        setShowModal(true);
+        Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, friction: 8, tension: 60 }).start();
+      } else {
+          Animated.timing(slideAnim, { toValue: height, duration: 250, useNativeDriver: true, easing: Easing.ease }).start(() => setShowModal(false));
+      }
+    }, [visible]);
+  
+    if (!showModal) return null;
+  
+    return (
+      <Modal transparent visible={showModal} onRequestClose={onClose}>
+        <TouchableOpacity activeOpacity={1} onPress={onClose} style={[styles.modalOverlay, {justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)'}]}>
+          <TouchableOpacity activeOpacity={1} style={{width: '100%'}}>
+            <Animated.View style={[styles.bottomSheet, { backgroundColor: colors.surface, transform: [{ translateY: slideAnim }] }]}>
+                <View style={styles.sheetHandle} />
+                <Text style={[styles.modalTitle, { color: colors.text, marginBottom: 15 }]}>{title}</Text>
+                {children}
+            </Animated.View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+    );
+};
+
+// --- 5. ALERT MODAL ---
 const AlertModal = ({ visible, onClose, children, colors }) => {
     const scaleAnim = useRef(new Animated.Value(0)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -223,17 +247,29 @@ const AlertModal = ({ visible, onClose, children, colors }) => {
     );
 };
 
+
 // --- MAIN HOME SCREEN ---
 export default function HomeScreen({ navigation }) {
-  const { getFilteredExpenses, deleteExpense, addExpense, username, currency, budget, getBalanceData, colors, isDark } = useExpenses();
+  const { 
+    deleteExpense, addExpense, username, currency, budget, budgetPeriod, 
+    updateBudgetConfig, getBalanceData, colors, isDark 
+  } = useExpenses();
+
   const [activeFilterIndex, setActiveFilterIndex] = useState(0);
   const flatListRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('RECENT');
   
+  // Sort Popups
   const [showSortModal, setShowSortModal] = useState(false);
   const [sortMenuPos, setSortMenuPos] = useState({ x: 0, y: 0, width: 0, height: 0 });
 
+  // Wallet / Budget Popups
+  const [showBudgetModal, setShowBudgetModal] = useState(false);
+  const [tempBudget, setTempBudget] = useState(budget);
+  const [tempPeriod, setTempPeriod] = useState(budgetPeriod || 'Monthly');
+
+  // App States
   const [expandedId, setExpandedId] = useState(null);
   const [deleteVisible, setDeleteVisible] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
@@ -245,30 +281,23 @@ export default function HomeScreen({ navigation }) {
     if (index !== -1) { setActiveFilterIndex(index); flatListRef.current?.scrollToIndex({ index, animated: true }); }
   };
   
-  const handleSortButtonPress = (layout) => {
-      setSortMenuPos(layout); 
-      setShowSortModal(true);
-  };
-
+  const handleSortButtonPress = (layout) => { setSortMenuPos(layout); setShowSortModal(true); };
   const onViewableItemsChanged = useRef(({ viewableItems }) => { if (viewableItems.length > 0) setActiveFilterIndex(viewableItems[0].index); }).current;
   const animateLayout = () => { LayoutAnimation.configureNext({ duration: 300, create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity }, update: { type: LayoutAnimation.Types.easeInEaseOut }, delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity } }); };
+  
   const confirmDelete = (item) => { setItemToDelete(item); setDeleteVisible(true); };
   const performDelete = () => { if (itemToDelete) { setDeleteVisible(false); setUndoData(itemToDelete); setTimeout(() => { animateLayout(); deleteExpense(itemToDelete.id); setItemToDelete(null); setExpandedId(null); showUndo(); }, 200); } };
   const showUndo = () => { Animated.spring(undoAnim, { toValue: 0, useNativeDriver: true }).start(); setTimeout(() => hideUndo(), 4000); };
   const hideUndo = () => { Animated.timing(undoAnim, { toValue: 150, duration: 300, useNativeDriver: true }).start(() => setUndoData(null)); };
   const handleUndo = () => { if (undoData) { animateLayout(); addExpense(undoData); hideUndo(); } };
 
-  // --- LOGIC FIX: TOTALS ---
-  const activeFilterName = FILTERS[activeFilterIndex];
-  const initialData = getFilteredExpenses(activeFilterName);
-  
-  // Only sum EXPENSES for the "Spent" card (Ignore Income)
-  const totalFilteredSpent = initialData
-    .filter(item => item.type !== 'income')
-    .reduce((sum, item) => sum + item.amount, 0);
+  const handleSaveBudget = () => {
+    updateBudgetConfig(tempBudget, tempPeriod);
+    setShowBudgetModal(false);
+  };
 
-  // Get GLOBAL available balance (includes all history)
-  const { availableBalance } = getBalanceData();
+  // ✅ GET SMART MATH DATA
+  const { spentThisPeriod, availableBalance } = getBalanceData();
 
   const SortOption = ({ label, type, icon }) => {
     const isSelected = sortBy === type;
@@ -290,6 +319,8 @@ export default function HomeScreen({ navigation }) {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.background} />
+      
+      {/* HEADER */}
       <View style={styles.header}>
         <View>
           <Text style={[styles.greeting, { color: colors.textSec }]}>Namaste, {username}</Text>
@@ -308,20 +339,24 @@ export default function HomeScreen({ navigation }) {
         </View>
       </View>
 
-      {/* BALANCE CARD (UPDATED LABELS) */}
-      <View style={[styles.balanceCard, { backgroundColor: colors.surface }]}>
-        <View>
-          <Text style={[styles.balanceLabel, { color: colors.textSec }]}>{activeFilterName} Spent</Text>
-          <Text style={[styles.balanceAmount, { color: colors.error }]}>-{currency}{totalFilteredSpent.toLocaleString('en-IN')}</Text>
-        </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={[styles.balanceLabel, { color: colors.textSec }]}>Total Available</Text>
-          {/* Dynamic Color for Balance */}
-          <Text style={[styles.balanceAmount, { color: availableBalance < 0 ? colors.error : colors.success }]}>
-            {currency}{availableBalance.toLocaleString('en-IN')}
-          </Text>
-        </View>
-      </View>
+      {/* 🚀 SMART BALANCE CARD (Clickable) */}
+      <TouchableOpacity activeOpacity={0.8} onPress={() => { setTempBudget(budget); setTempPeriod(budgetPeriod); setShowBudgetModal(true); }}>
+        <Surface style={[styles.balanceCard, { backgroundColor: colors.surface }]}>
+            <View>
+                <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 4}}>
+                    <Text style={[styles.balanceLabel, { color: colors.textSec, marginBottom: 0 }]}>Spent ({budgetPeriod})</Text>
+                    <IconButton icon="pencil" size={12} iconColor={colors.textSec} style={{margin:0, marginLeft: 2}} />
+                </View>
+                <Text style={[styles.balanceAmount, { color: colors.error }]}>-{currency}{spentThisPeriod.toLocaleString('en-IN')}</Text>
+            </View>
+            <View style={{ alignItems: 'flex-end' }}>
+                <Text style={[styles.balanceLabel, { color: colors.textSec }]}>Available Limit</Text>
+                <Text style={[styles.balanceAmount, { color: availableBalance < 0 ? colors.error : colors.success }]}>
+                    {currency}{availableBalance.toLocaleString('en-IN')}
+                </Text>
+            </View>
+        </Surface>
+      </TouchableOpacity>
 
       <View style={[styles.searchContainer, { backgroundColor: colors.surface }]}>
         <IconButton icon="magnify" size={20} iconColor={colors.textSec} style={{ margin: 0 }} />
@@ -344,6 +379,9 @@ export default function HomeScreen({ navigation }) {
       <FAB icon="plus" color="#fff" style={[styles.fab, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('AddExpense')} />
       <FAB icon="filter-variant" color="#fff" style={[styles.fabLeft, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('Filter')} />
 
+      {/* 🛠️ MODALS */}
+
+      {/* 1. Sort Popup Menu */}
       <PopupMenu visible={showSortModal} onClose={() => setShowSortModal(false)} position={sortMenuPos} colors={colors}>
           <Text style={{fontSize: 12, fontWeight: 'bold', color: colors.textSec, marginLeft: 12, marginBottom: 5, textTransform: 'uppercase'}}>Sort By</Text>
           <SortOption label="Recent First" type="RECENT" icon="sort-calendar-descending" />
@@ -353,11 +391,43 @@ export default function HomeScreen({ navigation }) {
           <SortOption label="Lowest Amount" type="LOW" icon="sort-numeric-ascending" />
       </PopupMenu>
 
+      {/* 2. Wallet Config Bottom Sheet */}
+      <BottomSheet visible={showBudgetModal} onClose={() => setShowBudgetModal(false)} title="Wallet Config" colors={colors}>
+          <Text style={{color: colors.textSec, marginBottom: 15, textAlign: 'center'}}>Set a base budget. Any Income added will increase this available limit.</Text>
+          
+          <SegmentedButtons
+                value={tempPeriod}
+                onValueChange={setTempPeriod}
+                buttons={[
+                    { value: 'Weekly', label: 'Weekly' },
+                    { value: 'Monthly', label: 'Monthly' },
+                    { value: 'Yearly', label: 'Yearly' },
+                ]}
+                theme={{ colors: { secondaryContainer: colors.primary + '20', onSecondaryContainer: colors.primary, outline: colors.border } }}
+                style={{marginBottom: 20}}
+          />
+
+          <View style={{flexDirection: 'row', alignItems: 'center', backgroundColor: colors.inputBg, borderRadius: 16, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 15, marginBottom: 20}}>
+              <Text style={{fontSize: 24, fontWeight: 'bold', color: colors.text}}>{currency}</Text>
+              <TextInput 
+                  value={tempBudget}
+                  onChangeText={setTempBudget}
+                  keyboardType="numeric"
+                  style={{flex: 1, fontSize: 24, fontWeight: 'bold', color: colors.text, paddingVertical: 15, marginLeft: 10}}
+                  placeholder="0"
+                  placeholderTextColor={colors.textSec}
+              />
+          </View>
+
+          <Button mode="contained" onPress={handleSaveBudget} buttonColor={colors.primary} textColor="#FFF" contentStyle={{height: 50}}>Save Config</Button>
+      </BottomSheet>
+
+      {/* 3. Delete Confirm Modal */}
       <AlertModal visible={deleteVisible} onClose={() => setDeleteVisible(false)} colors={colors}>
             <View style={[styles.alertIconCircle, { backgroundColor: '#FEE2E2' }]}>
                 <IconButton icon="trash-can" size={32} iconColor={colors.error} style={{margin: 0}} />
             </View>
-            <Text style={[styles.alertTitle, { color: colors.text }]}>Delete Expense?</Text>
+            <Text style={[styles.alertTitle, { color: colors.text }]}>Delete Transaction?</Text>
             <Text style={[styles.alertDesc, { color: colors.textSec }]}>Remove <Text style={{fontWeight: 'bold'}}>{itemToDelete?.name}</Text> permanently?</Text>
             <View style={styles.alertBtnRow}>
                 <Button mode="text" onPress={() => setDeleteVisible(false)} textColor={colors.textSec} style={{flex: 1}}>Cancel</Button>
@@ -400,17 +470,13 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1 }, 
   alertBox: { width: '80%', alignSelf:'center', borderRadius: 28, padding: 24, alignItems: 'center', elevation: 10 },
   
-  // POPUP MENU STYLES
+  bottomSheet: { width: '100%', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 40, elevation: 20 },
+  sheetHandle: { width: 40, height: 5, borderRadius: 3, backgroundColor: 'rgba(0,0,0,0.2)', alignSelf: 'center', marginBottom: 15 },
+  modalTitle: { fontSize: 20, fontWeight: '800', textAlign: 'center' },
+
   popupMenu: { 
-    position: 'absolute',
-    width: 200, 
-    borderRadius: 16, 
-    padding: 12, 
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    position: 'absolute', width: 200, borderRadius: 16, padding: 12, elevation: 8,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8,
   },
   
   sortRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, paddingHorizontal: 8, marginBottom: 2 },
