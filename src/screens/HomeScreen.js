@@ -247,7 +247,6 @@ const AlertModal = ({ visible, onClose, children, colors }) => {
     );
 };
 
-
 // --- MAIN HOME SCREEN ---
 export default function HomeScreen({ navigation }) {
   const { 
@@ -280,7 +279,6 @@ export default function HomeScreen({ navigation }) {
     if (index !== -1) { setActiveFilterIndex(index); flatListRef.current?.scrollToIndex({ index, animated: true }); }
   };
   
-  // Adjusted positioning logic for Sort vs Header menu
   const handleSortButtonPress = (layout) => { setSortMenuPos({ x: layout.x, y: layout.y + layout.height + 4 }); setShowSortModal(true); };
   
   const onViewableItemsChanged = useRef(({ viewableItems }) => { if (viewableItems.length > 0) setActiveFilterIndex(viewableItems[0].index); }).current;
@@ -341,6 +339,7 @@ export default function HomeScreen({ navigation }) {
             <IconButton icon="chart-pie" iconColor={colors.text} size={24} style={{ margin: 0 }} />
           </TouchableOpacity>
 
+          {/* 🚀 3-DOTS BUTTON (Triggers the custom premium menu below) */}
           <TouchableOpacity onPress={() => setHeaderMenuVisible(true)} style={[styles.chartButton, { backgroundColor: colors.surface }]}>
             <IconButton icon="dots-vertical" iconColor={colors.text} size={24} style={{ margin: 0 }} />
           </TouchableOpacity>
@@ -380,16 +379,21 @@ export default function HomeScreen({ navigation }) {
         )}
       />
 
+      {/* 🚀 LEFT FAB: Ask FinBot */}
+      <FAB icon="robot-outline" color="#fff" style={[styles.fabLeft, { backgroundColor: colors.accent || '#6200EE' }]} onPress={() => navigation.navigate('Chat')} />
+      
+      {/* 🚀 RIGHT FAB: Manual Add */}
       <FAB icon="plus" color="#fff" style={[styles.fab, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('AddExpense')} />
-      <FAB icon="filter-variant" color="#fff" style={[styles.fabLeft, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('Filter')} />
 
       {/* 🛠️ MODALS & MENUS */}
 
       {/* ✨ TOP RIGHT HEADER MENU (Premium Layout) */}
       <PopupMenu visible={headerMenuVisible} onClose={() => setHeaderMenuVisible(false)} position={{ x: width - 230, y: 70 }} colors={colors}>
           <PremiumMenuOption label="Notifications" icon="bell-outline" color={colors.primary} onPress={() => { setHeaderMenuVisible(false); navigation.navigate('Notifications'); }} />
-          {/* FinBot Accent Color (Purple/Indigo) to make it stand out as AI */}
-          <PremiumMenuOption label="Ask FinBot" icon="robot-outline" color={colors.accent || '#6200EE'} onPress={() => { setHeaderMenuVisible(false); navigation.navigate('Chat'); }} />
+          
+          {/* Swapped: Filter is now inside the dropdown menu */}
+          <PremiumMenuOption label="Filter Options" icon="filter-variant" color={colors.primary} onPress={() => { setHeaderMenuVisible(false); navigation.navigate('Filter'); }} />
+          
           <View style={{height:1, backgroundColor: colors.border, marginVertical: 8, opacity: 0.5}} />
           <PremiumMenuOption label="Settings" icon="cog-outline" color={colors.textSec} onPress={() => { setHeaderMenuVisible(false); navigation.navigate('Settings'); }} />
       </PopupMenu>
@@ -468,7 +472,7 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 20, fontWeight: '800', textAlign: 'center' },
 
   popupMenu: { 
-    position: 'absolute', width: 210, borderRadius: 20, padding: 12, elevation: 15,
+    position: 'absolute', width: 220, borderRadius: 20, padding: 12, elevation: 15,
     shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 15,
   },
   
