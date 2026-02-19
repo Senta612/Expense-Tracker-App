@@ -149,7 +149,7 @@ const ExpensePage = ({ filter, searchQuery, sortBy, navigation, onConfirmDelete,
   );
 };
 
-// --- 3. POPUP MENU (Sort Menu) ---
+// --- 3. CUSTOM ANIMATED POPUP MENU ---
 const PopupMenu = ({ visible, onClose, children, position, colors }) => {
     const scaleAnim = useRef(new Animated.Value(0)).current; 
     const fadeAnim = useRef(new Animated.Value(0)).current; 
@@ -180,7 +180,7 @@ const PopupMenu = ({ visible, onClose, children, position, colors }) => {
                 styles.popupMenu, 
                 { 
                     backgroundColor: colors.surface, 
-                    top: position.y + position.height + 4,
+                    top: position.y,
                     left: position.x,
                     opacity: fadeAnim, 
                     transform: [{ scale: scaleAnim }, { translateY: 0 }] 
@@ -194,7 +194,7 @@ const PopupMenu = ({ visible, onClose, children, position, colors }) => {
     );
 };
 
-// --- 4. BOTTOM SHEET (For Wallet Config) ---
+// --- 4. BOTTOM SHEET ---
 const BottomSheet = ({ visible, onClose, children, title, colors }) => {
     const slideAnim = useRef(new Animated.Value(height)).current; 
     const [showModal, setShowModal] = useState(visible);
@@ -260,11 +260,10 @@ export default function HomeScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('RECENT');
   
-  // Sort Popups
+  // App Menus & Modals
+  const [headerMenuVisible, setHeaderMenuVisible] = useState(false);
   const [showSortModal, setShowSortModal] = useState(false);
   const [sortMenuPos, setSortMenuPos] = useState({ x: 0, y: 0, width: 0, height: 0 });
-
-  // Wallet / Budget Popups
   const [showBudgetModal, setShowBudgetModal] = useState(false);
   const [tempBudget, setTempBudget] = useState(budget);
   const [tempPeriod, setTempPeriod] = useState(budgetPeriod || 'Monthly');
@@ -281,7 +280,9 @@ export default function HomeScreen({ navigation }) {
     if (index !== -1) { setActiveFilterIndex(index); flatListRef.current?.scrollToIndex({ index, animated: true }); }
   };
   
-  const handleSortButtonPress = (layout) => { setSortMenuPos(layout); setShowSortModal(true); };
+  // Adjusted positioning logic for Sort vs Header menu
+  const handleSortButtonPress = (layout) => { setSortMenuPos({ x: layout.x, y: layout.y + layout.height + 4 }); setShowSortModal(true); };
+  
   const onViewableItemsChanged = useRef(({ viewableItems }) => { if (viewableItems.length > 0) setActiveFilterIndex(viewableItems[0].index); }).current;
   const animateLayout = () => { LayoutAnimation.configureNext({ duration: 300, create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity }, update: { type: LayoutAnimation.Types.easeInEaseOut }, delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity } }); };
   
@@ -296,17 +297,25 @@ export default function HomeScreen({ navigation }) {
     setShowBudgetModal(false);
   };
 
-  // ✅ GET SMART MATH DATA
   const { spentThisPeriod, availableBalance } = getBalanceData();
+
+  // ✨ REUSABLE PREMIUM MENU ITEM
+  const PremiumMenuOption = ({ label, icon, color, onPress }) => (
+    <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={styles.premiumMenuRow}>
+        <View style={{flexDirection: 'row', alignItems: 'center'}}>
+            <View style={[styles.menuIconBg, { backgroundColor: color + '15' }]}>
+                <IconButton icon={icon} size={20} iconColor={color} style={{margin:0}} />
+            </View>
+            <Text style={[styles.premiumMenuText, { color: colors.text }]}>{label}</Text>
+        </View>
+        <IconButton icon="chevron-right" size={16} iconColor={colors.textSec} style={{margin:0, opacity: 0.5}} />
+    </TouchableOpacity>
+  );
 
   const SortOption = ({ label, type, icon }) => {
     const isSelected = sortBy === type;
     return (
-      <TouchableOpacity 
-        activeOpacity={0.7}
-        onPress={() => { setSortBy(type); setShowSortModal(false); }} 
-        style={[styles.sortRow, isSelected && { backgroundColor: colors.primary + '15', borderRadius: 8 }]}
-      >
+      <TouchableOpacity activeOpacity={0.7} onPress={() => { setSortBy(type); setShowSortModal(false); }} style={[styles.sortRow, isSelected && { backgroundColor: colors.primary + '15', borderRadius: 8 }]}>
         <View style={{flexDirection: 'row', alignItems: 'center'}}>
             <IconButton icon={icon} size={20} iconColor={isSelected ? colors.primary : colors.textSec} style={{margin:0, marginRight: 8}} />
             <Text style={[styles.sortText, { color: isSelected ? colors.primary : colors.text }]}>{label}</Text>
@@ -327,19 +336,19 @@ export default function HomeScreen({ navigation }) {
           <Text style={[styles.headerTitle, { color: colors.text }]}>My Spending</Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={[styles.chartButton, { backgroundColor: colors.surface }]}>
-             <IconButton icon="bell-outline" iconColor={colors.text} size={24} style={{ margin: 0 }} />
-          </TouchableOpacity>
+          
           <TouchableOpacity onPress={() => navigation.navigate('Stats')} style={[styles.chartButton, { backgroundColor: colors.surface }]}>
             <IconButton icon="chart-pie" iconColor={colors.text} size={24} style={{ margin: 0 }} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={[styles.chartButton, { backgroundColor: colors.surface }]}>
-            <IconButton icon="cog" iconColor={colors.text} size={24} style={{ margin: 0 }} />
+
+          <TouchableOpacity onPress={() => setHeaderMenuVisible(true)} style={[styles.chartButton, { backgroundColor: colors.surface }]}>
+            <IconButton icon="dots-vertical" iconColor={colors.text} size={24} style={{ margin: 0 }} />
           </TouchableOpacity>
+
         </View>
       </View>
 
-      {/* 🚀 SMART BALANCE CARD (Clickable) */}
+      {/* SMART BALANCE CARD */}
       <TouchableOpacity activeOpacity={0.8} onPress={() => { setTempBudget(budget); setTempPeriod(budgetPeriod); setShowBudgetModal(true); }}>
         <Surface style={[styles.balanceCard, { backgroundColor: colors.surface }]}>
             <View>
@@ -371,17 +380,21 @@ export default function HomeScreen({ navigation }) {
         )}
       />
 
-      <TouchableOpacity onPress={() => navigation.navigate('Chat')} style={[styles.aiPill, { backgroundColor: colors.surface }]} activeOpacity={0.8}>
-        <Avatar.Icon size={24} icon="robot" style={{ backgroundColor: 'transparent', margin: 0 }} color={colors.primary} />
-        <Text style={[styles.aiText, { color: colors.text }]}>Ask FinBot</Text>
-      </TouchableOpacity>
-
       <FAB icon="plus" color="#fff" style={[styles.fab, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('AddExpense')} />
       <FAB icon="filter-variant" color="#fff" style={[styles.fabLeft, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('Filter')} />
 
-      {/* 🛠️ MODALS */}
+      {/* 🛠️ MODALS & MENUS */}
 
-      {/* 1. Sort Popup Menu */}
+      {/* ✨ TOP RIGHT HEADER MENU (Premium Layout) */}
+      <PopupMenu visible={headerMenuVisible} onClose={() => setHeaderMenuVisible(false)} position={{ x: width - 230, y: 70 }} colors={colors}>
+          <PremiumMenuOption label="Notifications" icon="bell-outline" color={colors.primary} onPress={() => { setHeaderMenuVisible(false); navigation.navigate('Notifications'); }} />
+          {/* FinBot Accent Color (Purple/Indigo) to make it stand out as AI */}
+          <PremiumMenuOption label="Ask FinBot" icon="robot-outline" color={colors.accent || '#6200EE'} onPress={() => { setHeaderMenuVisible(false); navigation.navigate('Chat'); }} />
+          <View style={{height:1, backgroundColor: colors.border, marginVertical: 8, opacity: 0.5}} />
+          <PremiumMenuOption label="Settings" icon="cog-outline" color={colors.textSec} onPress={() => { setHeaderMenuVisible(false); navigation.navigate('Settings'); }} />
+      </PopupMenu>
+
+      {/* SORT MENU */}
       <PopupMenu visible={showSortModal} onClose={() => setShowSortModal(false)} position={sortMenuPos} colors={colors}>
           <Text style={{fontSize: 12, fontWeight: 'bold', color: colors.textSec, marginLeft: 12, marginBottom: 5, textTransform: 'uppercase'}}>Sort By</Text>
           <SortOption label="Recent First" type="RECENT" icon="sort-calendar-descending" />
@@ -391,38 +404,18 @@ export default function HomeScreen({ navigation }) {
           <SortOption label="Lowest Amount" type="LOW" icon="sort-numeric-ascending" />
       </PopupMenu>
 
-      {/* 2. Wallet Config Bottom Sheet */}
+      {/* WALLET CONFIG */}
       <BottomSheet visible={showBudgetModal} onClose={() => setShowBudgetModal(false)} title="Wallet Config" colors={colors}>
           <Text style={{color: colors.textSec, marginBottom: 15, textAlign: 'center'}}>Set a base budget. Any Income added will increase this available limit.</Text>
-          
-          <SegmentedButtons
-                value={tempPeriod}
-                onValueChange={setTempPeriod}
-                buttons={[
-                    { value: 'Weekly', label: 'Weekly' },
-                    { value: 'Monthly', label: 'Monthly' },
-                    { value: 'Yearly', label: 'Yearly' },
-                ]}
-                theme={{ colors: { secondaryContainer: colors.primary + '20', onSecondaryContainer: colors.primary, outline: colors.border } }}
-                style={{marginBottom: 20}}
-          />
-
+          <SegmentedButtons value={tempPeriod} onValueChange={setTempPeriod} buttons={[{ value: 'Weekly', label: 'Weekly' }, { value: 'Monthly', label: 'Monthly' }, { value: 'Yearly', label: 'Yearly' }]} theme={{ colors: { secondaryContainer: colors.primary + '20', onSecondaryContainer: colors.primary, outline: colors.border } }} style={{marginBottom: 20}} />
           <View style={{flexDirection: 'row', alignItems: 'center', backgroundColor: colors.inputBg, borderRadius: 16, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 15, marginBottom: 20}}>
               <Text style={{fontSize: 24, fontWeight: 'bold', color: colors.text}}>{currency}</Text>
-              <TextInput 
-                  value={tempBudget}
-                  onChangeText={setTempBudget}
-                  keyboardType="numeric"
-                  style={{flex: 1, fontSize: 24, fontWeight: 'bold', color: colors.text, paddingVertical: 15, marginLeft: 10}}
-                  placeholder="0"
-                  placeholderTextColor={colors.textSec}
-              />
+              <TextInput value={tempBudget} onChangeText={setTempBudget} keyboardType="numeric" style={{flex: 1, fontSize: 24, fontWeight: 'bold', color: colors.text, paddingVertical: 15, marginLeft: 10}} placeholder="0" placeholderTextColor={colors.textSec} />
           </View>
-
           <Button mode="contained" onPress={handleSaveBudget} buttonColor={colors.primary} textColor="#FFF" contentStyle={{height: 50}}>Save Config</Button>
       </BottomSheet>
 
-      {/* 3. Delete Confirm Modal */}
+      {/* DELETE ALERT */}
       <AlertModal visible={deleteVisible} onClose={() => setDeleteVisible(false)} colors={colors}>
             <View style={[styles.alertIconCircle, { backgroundColor: '#FEE2E2' }]}>
                 <IconButton icon="trash-can" size={32} iconColor={colors.error} style={{margin: 0}} />
@@ -475,10 +468,14 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 20, fontWeight: '800', textAlign: 'center' },
 
   popupMenu: { 
-    position: 'absolute', width: 200, borderRadius: 16, padding: 12, elevation: 8,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8,
+    position: 'absolute', width: 210, borderRadius: 20, padding: 12, elevation: 15,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 15,
   },
   
+  premiumMenuRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, paddingHorizontal: 4 },
+  menuIconBg: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  premiumMenuText: { fontSize: 15, fontWeight: '600' },
+
   sortRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, paddingHorizontal: 8, marginBottom: 2 },
   sortText: { fontSize: 14, fontWeight: '600' },
 
@@ -490,8 +487,6 @@ const styles = StyleSheet.create({
   undoContainer: { position: 'absolute', bottom: 30, left: 20, right: 20, alignItems: 'center' },
   undoBar: { width: '100%', borderRadius: 16, padding: 5, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 20 },
   
-  aiPill: { position: 'absolute', right: 20, bottom: 90, borderRadius: 25, flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 16, elevation: 4, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3, zIndex: 10 },
-  aiText: { fontSize: 14, fontWeight: '700', marginLeft: 6 },
   emptyText: { textAlign: 'center', marginTop: 50 },
   fab: { position: 'absolute', margin: 20, right: 0, bottom: 0, borderRadius: 16 },
   fabLeft: { position: 'absolute', margin: 20, left: 0, bottom: 0, borderRadius: 16 },
