@@ -1,177 +1,182 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Dimensions, ScrollView, ActivityIndicator, Keyboard } from 'react-native';
-import { Text, Surface, IconButton, Avatar } from 'react-native-paper';
+import { View, StyleSheet, FlatList, TextInput, KeyboardAvoidingView, Platform, TouchableOpacity, Keyboard, ActivityIndicator } from 'react-native';
+import { Text, IconButton, Surface, Avatar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useExpenses } from '../context/ExpenseContext';
-import { PieChart } from 'react-native-chart-kit';
-
-const screenWidth = Dimensions.get('window').width;
-
-// --- KEYWORDS & LOGIC REMAIN THE SAME ---
-const KEYWORD_MAP = {
-  'Food': ['breakfast', 'lunch', 'dinner', 'snack', 'tea', 'coffee', 'burger', 'pizza', 'sandwich', 'roti', 'swiggy', 'zomato', 'restaurant', 'milk', 'water', 'cake'],
-  'Travel': ['uber', 'ola', 'bus', 'train', 'flight', 'petrol', 'diesel', 'fuel', 'cab', 'auto', 'ticket', 'metro', 'parking'],
-  'Bills': ['recharge', 'netflix', 'wifi', 'broadband', 'electricity', 'mobile', 'dth', 'gas', 'rent', 'emi', 'hotstar'],
-  'Shopping': ['amazon', 'flipkart', 'myntra', 'clothes', 'shoes', 'jeans', 'shirt', 'watch', 'bag', 'grocery', 'shampoo', 'soap'],
-  'Health': ['medicine', 'doctor', 'clinic', 'gym', 'hospital', 'checkup', 'test']
-};
-const SUCCESS_MSGS = ["Got it! Saved", "Done! Added", "Noted! Tracked", "Easy peasy! Added", "Roger that! Saved"];
 
 export default function ChatScreen({ navigation }) {
-  const { colors, addExpense, deleteExpense, categories, paymentModes, upiApps, currency, getFilteredExpenses, expenses } = useExpenses();
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [lastAddedId, setLastAddedId] = useState(null);
-  const [messages, setMessages] = useState([{ id: '1', type: 'text', text: "Hi! I'm FinBot. Tell me 'Yesterday Dinner 250' or 'Uber 100'.", sender: 'bot' }]);
-  const flatListRef = useRef();
+  const { expenses, currency, getBalanceData, colors, categories } = useExpenses();
   
-  const suggestions = [
-    { label: "📊 Today's Summary", cmd: "Show today's summary" },
-    { label: "🔙 Yesterday Lunch 150", cmd: "Yesterday Lunch 150" },
-    { label: "⛽ Petrol 500", cmd: "Petrol 500" },
-    { label: "📈 Weekly Chart", cmd: "Show weekly chart" },
-  ];
+  // Start with a default greeting
+  const [messages, setMessages] = useState([
+    { 
+        id: '1', 
+        text: "Hi there! I'm FinBot 🤖. I analyze your wallet locally. Ask me things like:\n\n• 'What is my total spending?'\n• 'How much did I spend on Food?'\n• 'What is my highest expense?'\n• 'What is my balance?'", 
+        sender: 'bot', 
+        timestamp: new Date() 
+    }
+  ]);
+  const [inputText, setInputText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const flatListRef = useRef();
 
-  // --- LOGIC (Same as before) ---
-  const processCommand = (text) => {
-    const lower = text.toLowerCase();
-    if (lower === 'undo' && lastAddedId) { deleteExpense(lastAddedId); setLastAddedId(null); return { type: 'text', text: "Start over! I removed that last entry. 🗑️" }; }
-    if (lower.match(/\d+/) && (lower.includes('add') || lower.includes('spent') || isCategoryKeyword(lower) || lower.includes('yesterday'))) return handleAddCommand(text, lower);
-    if (lower.includes('summary') || lower.includes('total')) return handleSummaryCommand(lower);
-    if (lower.includes('chart') || lower.includes('graph')) return handleChartCommand();
-    if (lower.includes('biggest') || lower.includes('highest')) return handleAnalysisCommand();
-    return { type: 'text', text: "I didn't get that. Try 'Lunch 150' or 'Show Chart'." };
-  };
-  const isCategoryKeyword = (text) => { for (const cat in KEYWORD_MAP) { if (KEYWORD_MAP[cat].some(k => text.includes(k))) return true; } return false; };
-
-  const handleAddCommand = (originalText, lower) => {
-    const amountMatch = originalText.match(/(\d+(\.\d+)?)/);
-    if (!amountMatch) return { type: 'text', text: "I need an amount! (e.g. '100')" };
-    const amount = parseFloat(amountMatch[0]);
-    let date = new Date();
-    if (lower.includes('yesterday')) date.setDate(date.getDate() - 1);
+  // --- 🧠 LOCAL AI LOGIC ENGINE ---
+  const analyzeQuery = (query) => {
+    const q = query.toLowerCase();
     
-    let category = 'Other';
-    let detectedKeyword = '';
-    categories.forEach(cat => { if (lower.includes(cat.toLowerCase())) category = cat; });
-    if (category === 'Other') { for (const [catName, keywords] of Object.entries(KEYWORD_MAP)) { const match = keywords.find(k => lower.includes(k)); if (match) { category = catName; detectedKeyword = match; break; } } }
-    
-    let paymentMode = 'Cash'; let paymentApp = null;
-    upiApps.forEach(app => { if (lower.includes(app.toLowerCase())) { paymentMode = 'UPI'; paymentApp = app; }});
-    if (!paymentApp) { paymentModes.forEach(mode => { if (lower.includes(mode.toLowerCase())) paymentMode = mode; }); }
+    // Only look at actual expenses for spending calculations
+    const expenseList = expenses.filter(e => e.type === 'expense' || !e.type);
+    const incomeList = expenses.filter(e => e.type === 'income');
 
-    let cleanDesc = originalText.replace(amountMatch[0], '').replace(/yesterday|add|spent|paid|bought|via|on|for/gi, '').replace(new RegExp(category, 'gi'), '').replace(new RegExp(paymentMode, 'gi'), '').replace(new RegExp(paymentApp, 'gi'), '').trim();
-    const finalTitle = cleanDesc.length > 1 ? cleanDesc : (detectedKeyword ? detectedKeyword.charAt(0).toUpperCase() + detectedKeyword.slice(1) : category);
-    const newId = Date.now().toString();
-    
-    addExpense({ id: newId, name: finalTitle, amount, category, description: `Bot Entry: ${originalText}`, date: date.toISOString(), paymentMode, paymentApp });
-    setLastAddedId(newId);
-    return { type: 'text', text: `✅ ${SUCCESS_MSGS[Math.floor(Math.random() * SUCCESS_MSGS.length)]} ${currency}${amount} for ${category}.`, showUndo: true };
+    // 1. Balance Queries
+    if (q.includes('balance') || q.includes('wallet') || q.includes('left')) {
+        const { availableBalance } = getBalanceData();
+        return `Your current available balance is **${currency}${availableBalance.toLocaleString('en-IN')}**.`;
+    }
+
+    // 2. Total Spending Queries
+    if (q.includes('total spend') || q.includes('total spent') || q.includes('how much have i spent')) {
+        const total = expenseList.reduce((sum, item) => sum + item.amount, 0);
+        return `You have spent a total of **${currency}${total.toLocaleString('en-IN')}** across all categories.`;
+    }
+
+    // 3. Total Income Queries
+    if (q.includes('income') || q.includes('earned') || q.includes('received')) {
+        const totalInc = incomeList.reduce((sum, item) => sum + item.amount, 0);
+        return `You have received a total of **${currency}${totalInc.toLocaleString('en-IN')}** in income.`;
+    }
+
+    // 4. Highest Expense Queries
+    if (q.includes('highest') || q.includes('biggest') || q.includes('most expensive')) {
+        if (expenseList.length === 0) return "You haven't recorded any expenses yet!";
+        const highest = [...expenseList].sort((a, b) => b.amount - a.amount)[0];
+        return `Your biggest expense was **${highest.name}** for **${currency}${highest.amount}** on ${new Date(highest.date).toDateString()}.`;
+    }
+
+    // 5. Category-Specific Queries (Dynamically checks your custom categories!)
+    for (let cat of categories) {
+        if (q.includes(cat.toLowerCase())) {
+            const catTotal = expenseList.filter(e => e.category === cat).reduce((sum, item) => sum + item.amount, 0);
+            if (catTotal === 0) return `You haven't spent anything on **${cat}** yet.`;
+            return `You have spent a total of **${currency}${catTotal.toLocaleString('en-IN')}** on **${cat}**.`;
+        }
+    }
+
+    // Fallback response
+    return "I'm still learning! Try asking about your 'balance', 'total spending', 'highest expense', or a specific category like 'Food'.";
   };
 
-  const handleSummaryCommand = (lower) => {
-    let target = lower.includes('today') ? 'Today' : lower.includes('week') ? 'Week' : 'All';
-    const total = getFilteredExpenses(target).reduce((sum, item) => sum + item.amount, 0);
-    return { type: 'text', text: `📊 ${target} Total: ${currency}${total}` };
-  };
-  const handleChartCommand = () => {
-    const catTotals = {}; expenses.forEach(e => { catTotals[e.category] = (catTotals[e.category] || 0) + e.amount; });
-    const chartData = Object.keys(catTotals).map((cat, index) => ({ name: cat, population: catTotals[cat], color: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'][index % 5], legendFontColor: colors.text, legendFontSize: 12 }));
-    return chartData.length === 0 ? { type: 'text', text: "No data yet!" } : { type: 'chart', text: "Spending Breakdown:", data: chartData };
-  };
-  const handleAnalysisCommand = () => {
-    if (expenses.length === 0) return { type: 'text', text: "No data." };
-    const max = expenses.reduce((p, c) => (p.amount > c.amount) ? p : c);
-    return { type: 'text', text: `🏆 Biggest Expense: ${max.name} (${currency}${max.amount})` };
-  };
+  const sendMessage = () => {
+    if (!inputText.trim()) return;
 
-  const sendMessage = (customText = null) => {
-    const msgText = customText || input;
-    if (!msgText.trim()) return;
-    const userMsg = { id: Date.now().toString(), type: 'text', text: msgText, sender: 'user' };
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
-    setLoading(true);
+    const userMessage = { id: Date.now().toString(), text: inputText.trim(), sender: 'user', timestamp: new Date() };
+    setMessages(prev => [...prev, userMessage]);
+    setInputText('');
+    setIsTyping(true);
+
+    // Simulate AI thinking delay (600ms)
     setTimeout(() => {
-        const reply = processCommand(msgText);
-        const botMsg = { id: (Date.now() + 1).toString(), ...reply, sender: 'bot' };
-        setMessages(prev => [...prev, botMsg]);
-        setLoading(false);
-    }, 500);
+        const botResponseText = analyzeQuery(userMessage.text);
+        const botMessage = { id: (Date.now() + 1).toString(), text: botResponseText, sender: 'bot', timestamp: new Date() };
+        
+        setMessages(prev => [...prev, botMessage]);
+        setIsTyping(false);
+    }, 600);
   };
 
-  // --- UI RENDER ---
-  const renderBubble = (item) => {
-    const isBot = item.sender === 'bot';
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+  }, [messages, isTyping]);
+
+  // --- UI RENDERERS ---
+  const formatText = (text) => {
+      // Very simple markdown parser for bolding (**)
+      const parts = text.split(/(\*\*.*?\*\*)/g);
+      return parts.map((part, index) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+              return <Text key={index} style={{fontWeight: 'bold'}}>{part.replace(/\*\*/g, '')}</Text>;
+          }
+          return part;
+      });
+  };
+
+  const renderMessage = ({ item }) => {
+    const isUser = item.sender === 'user';
     return (
-        <View style={[styles.bubbleWrapper, isBot ? { alignSelf: 'flex-start' } : { alignSelf: 'flex-end' }]}>
-            <Surface style={[styles.bubble, isBot ? { backgroundColor: colors.surface, borderBottomLeftRadius: 0 } : { backgroundColor: colors.primary, borderBottomRightRadius: 0 }]} elevation={1}>
-                {item.type === 'text' && <Text style={[styles.msgText, { color: isBot ? colors.text : '#FFF' }]}>{item.text}</Text>}
-                {item.type === 'chart' && ( <View><Text style={[styles.msgText, { color: colors.text, marginBottom: 10 }]}>{item.text}</Text><PieChart data={item.data} width={screenWidth * 0.65} height={140} chartConfig={{ color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})` }} accessor={"population"} backgroundColor={"transparent"} paddingLeft={"0"} absolute /></View> )}
-                {isBot && item.showUndo && ( <TouchableOpacity onPress={() => sendMessage('Undo')} style={{marginTop: 8}}><Text style={{color: colors.primary, fontWeight: 'bold', fontSize: 12}}>↩ Undo</Text></TouchableOpacity> )}
-            </Surface>
-        </View>
+      <View style={[styles.messageWrapper, isUser ? styles.messageWrapperUser : styles.messageWrapperBot]}>
+        {!isUser && (
+            <Avatar.Icon size={30} icon="robot-outline" color="#FFF" style={{ backgroundColor: colors.accent || '#6200EE', marginRight: 8, marginBottom: 5 }} />
+        )}
+        <Surface style={[styles.messageBubble, { 
+            backgroundColor: isUser ? colors.primary : colors.surface,
+            borderBottomRightRadius: isUser ? 4 : 20,
+            borderBottomLeftRadius: isUser ? 20 : 4,
+        }]} elevation={isUser ? 0 : 1}>
+          <Text style={[styles.messageText, { color: isUser ? '#FFF' : colors.text }]}>
+              {formatText(item.text)}
+          </Text>
+          <Text style={[styles.timestamp, { color: isUser ? 'rgba(255,255,255,0.6)' : colors.textSec }]}>
+              {item.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </Text>
+        </Surface>
+      </View>
     );
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       
-      {/* THE WHATSAPP FIX: 
-         Everything (Header + List + Input) is inside the KeyboardAvoidingView.
-         behavior="height" forces Android to squeeze the view.
-      */}
-      <KeyboardAvoidingView 
-        style={{ flex: 1 }} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        
-        {/* HEADER */}
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-              <IconButton icon="arrow-left" size={24} iconColor={colors.text} />
-          </TouchableOpacity>
-          <Avatar.Icon size={40} icon="robot" style={{ backgroundColor: colors.primary, marginRight: 10 }} color="#FFF" />
-          <View>
-              <Text style={[styles.headerTitle, { color: colors.text }]}>FinBot</Text>
-              <Text style={[styles.status, { color: colors.success }]}>● Online</Text>
-          </View>
+      {/* HEADER */}
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
+          <IconButton icon="arrow-left" size={24} iconColor={colors.text} style={{margin: 0}} />
+        </TouchableOpacity>
+        <View style={styles.headerTitleContainer}>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>FinBot AI</Text>
+            <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                <View style={styles.onlineDot} />
+                <Text style={{color: colors.success, fontSize: 12, fontWeight: '600', marginLeft: 4}}>Online</Text>
+            </View>
         </View>
+        <View style={{width: 40}} /> 
+      </View>
 
-        {/* CHAT LIST (Flex 1 to take all space) */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        
+        {/* CHAT AREA */}
         <FlatList
             ref={flatListRef}
             data={messages}
-            keyExtractor={item => item.id}
-            contentContainerStyle={{ padding: 15, paddingBottom: 20 }}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-            renderItem={({ item }) => renderBubble(item)}
-            ListFooterComponent={loading && <ActivityIndicator size={16} color={colors.textSec} style={{marginLeft: 20, marginBottom: 10}} />}
-            style={{ flex: 1 }} // Crucial for pushing input down
+            keyExtractor={(item) => item.id}
+            renderItem={renderMessage}
+            contentContainerStyle={styles.chatContainer}
+            showsVerticalScrollIndicator={false}
         />
-        
-        {/* CHIPS */}
-        <View style={{ height: 50 }}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 10, alignItems: 'center' }}>
-                {suggestions.map((chip, index) => (
-                    <TouchableOpacity key={index} style={[styles.chip, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => sendMessage(chip.cmd)}>
-                        <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>{chip.label}</Text>
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
-        </View>
+
+        {isTyping && (
+            <View style={styles.typingIndicator}>
+                <ActivityIndicator size="small" color={colors.accent || '#6200EE'} />
+                <Text style={{color: colors.textSec, marginLeft: 8, fontSize: 12}}>FinBot is analyzing...</Text>
+            </View>
+        )}
 
         {/* INPUT AREA */}
         <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
             <TextInput
-                style={[styles.input, { color: colors.text, backgroundColor: colors.inputBg }]}
-                placeholder="Ex: 'Yesterday Lunch 200'"
+                style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]}
+                placeholder="Ask about your spending..."
                 placeholderTextColor={colors.textSec}
-                value={input}
-                onChangeText={setInput}
-                onSubmitEditing={() => sendMessage()}
+                value={inputText}
+                onChangeText={setInputText}
+                onSubmitEditing={sendMessage}
+                returnKeyType="send"
             />
-            <IconButton icon="send" size={24} iconColor={colors.primary} onPress={() => sendMessage()} style={{ backgroundColor: colors.inputBg }} />
+            <TouchableOpacity onPress={sendMessage} disabled={!inputText.trim()}>
+                <View style={[styles.sendButton, { backgroundColor: inputText.trim() ? colors.primary : colors.inputBg }]}>
+                    <IconButton icon="send" size={20} iconColor={inputText.trim() ? '#FFF' : colors.textSec} style={{margin:0}} />
+                </View>
+            </TouchableOpacity>
         </View>
 
       </KeyboardAvoidingView>
@@ -180,13 +185,26 @@ export default function ChatScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', padding: 10, borderBottomWidth: 1, height: 70 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold' },
-  status: { fontSize: 12, fontWeight: '600' },
-  bubbleWrapper: { marginBottom: 15, maxWidth: '85%' },
-  bubble: { padding: 12, borderRadius: 16 },
-  msgText: { fontSize: 15, lineHeight: 22 },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', padding: 10, borderTopWidth: 1 },
-  input: { flex: 1, height: 45, borderRadius: 24, paddingHorizontal: 20, fontSize: 16, marginRight: 10 },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8, borderWidth: 1 },
+  container: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1 },
+  iconBtn: { padding: 5 },
+  headerTitleContainer: { alignItems: 'center' },
+  headerTitle: { fontSize: 18, fontWeight: '800' },
+  onlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#00C853' },
+  
+  chatContainer: { padding: 15, paddingBottom: 20 },
+  
+  messageWrapper: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 15, maxWidth: '85%' },
+  messageWrapperUser: { alignSelf: 'flex-end', justifyContent: 'flex-end' },
+  messageWrapperBot: { alignSelf: 'flex-start' },
+  
+  messageBubble: { padding: 12, borderRadius: 20 },
+  messageText: { fontSize: 15, lineHeight: 22 },
+  timestamp: { fontSize: 10, marginTop: 5, alignSelf: 'flex-end' },
+
+  typingIndicator: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 10 },
+
+  inputContainer: { flexDirection: 'row', alignItems: 'center', padding: 10, paddingBottom: Platform.OS === 'ios' ? 25 : 15, borderTopWidth: 1 },
+  input: { flex: 1, borderRadius: 24, paddingHorizontal: 18, paddingTop: 12, paddingBottom: 12, fontSize: 15, borderWidth: 1, maxHeight: 100 },
+  sendButton: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginLeft: 10 },
 });
