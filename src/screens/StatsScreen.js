@@ -1,341 +1,212 @@
-import React, { useState } from "react";
-import {
-    View,
-    StyleSheet,
-    ScrollView,
-    Dimensions,
-    TouchableOpacity,
-} from "react-native";
-import { Text, Surface, IconButton, Divider } from "react-native-paper";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { PieChart, ProgressChart } from "react-native-chart-kit";
-import { useExpenses } from "../context/ExpenseContext";
+import React, { useState, useEffect, useRef } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Animated, Dimensions } from 'react-native';
+import { Text, IconButton, Surface, Avatar } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useExpenses } from '../context/ExpenseContext';
 
-const screenWidth = Dimensions.get("window").width;
+const { width } = Dimensions.get('window');
+
+// --- PROGRESS BAR COMPONENT ---
+const CategoryBar = ({ category, amount, total, color, icon, currency }) => {
+  const fillAnim = useRef(new Animated.Value(0)).current;
+  const percentage = total > 0 ? (amount / total) * 100 : 0;
+
+  useEffect(() => {
+    Animated.timing(fillAnim, {
+      toValue: percentage,
+      duration: 800,
+      useNativeDriver: false, // width/flex cannot use native driver
+    }).start();
+  }, [percentage]);
+
+  return (
+    <View style={styles.catRow}>
+      <View style={[styles.catIconBox, { backgroundColor: color + '15' }]}>
+        <IconButton icon={icon} size={20} iconColor={color} style={{ margin: 0 }} />
+      </View>
+      <View style={styles.catDetails}>
+        <View style={styles.catHeader}>
+          <Text style={styles.catName}>{category}</Text>
+          <Text style={styles.catAmount}>{currency}{amount.toLocaleString('en-IN')}</Text>
+        </View>
+        <View style={styles.barBackground}>
+          <Animated.View 
+            style={[
+              styles.barFill, 
+              { 
+                  backgroundColor: color, 
+                  width: fillAnim.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }) 
+              }
+            ]} 
+          />
+        </View>
+      </View>
+    </View>
+  );
+};
 
 export default function StatsScreen({ navigation }) {
-    const { expenses, budget, getTotalSpent, currency, categories, colors } =
-        useExpenses(); // <--- GET COLORS
-    const [selectedCategory, setSelectedCategory] = useState(null);
+  const { getFilteredExpenses, colors, currency, isDark } = useExpenses();
+  const [timeFilter, setTimeFilter] = useState('Month');
 
-    // 1. Budget Data
-    const totalSpent = getTotalSpent();
-    const totalBudget = parseFloat(budget) || 1;
-    const percentageUsed = totalSpent / totalBudget;
-    const chartPercent = percentageUsed > 1 ? 1 : percentageUsed;
+  // --- 1. DATA PROCESSING ---
+  const currentData = getFilteredExpenses(timeFilter);
 
-    const budgetData = { data: [chartPercent] };
-    let ringColor = (opacity = 1) => `rgba(76, 175, 80, ${opacity})`;
-    if (percentageUsed > 0.5)
-        ringColor = (opacity = 1) => `rgba(255, 193, 7, ${opacity})`;
-    if (percentageUsed > 0.9)
-        ringColor = (opacity = 1) => `rgba(244, 67, 54, ${opacity})`;
+  // Separate Income and Expenses
+  const expenses = currentData.filter(item => item.type === 'expense' || !item.type);
+  const incomes = currentData.filter(item => item.type === 'income');
 
-    // 2. Pie Data
-    const palette = [
-        "#6C63FF",
-        "#FF6584",
-        "#FFC75F",
-        "#4BC0C0",
-        "#845EC2",
-        "#FF9671",
-        "#008F7A",
-    ];
+  const totalExpense = expenses.reduce((sum, item) => sum + item.amount, 0);
+  const totalIncome = incomes.reduce((sum, item) => sum + item.amount, 0);
+  const netSavings = totalIncome - totalExpense;
 
-    const pieData = categories
-        .map((cat, index) => {
-            const totalForCat = expenses
-                .filter((e) => e.category === cat)
-                .reduce((sum, item) => sum + item.amount, 0);
-            const isSelected = selectedCategory === cat;
-            const isAnySelected = selectedCategory !== null;
-            let sliceColor = palette[index % palette.length];
-            if (isAnySelected && !isSelected) sliceColor = colors.chip; // Use Theme Chip Color (Gray/DarkGray)
+  // Group Expenses by Category
+  const categoryTotals = expenses.reduce((acc, item) => {
+    acc[item.category] = (acc[item.category] || 0) + item.amount;
+    return acc;
+  }, {});
 
-            return {
-                name: cat,
-                amount: totalForCat,
-                color: sliceColor,
-                legendFontColor: "#7F7F7F",
-                legendFontSize: 12,
-            };
-        })
-        .filter((item) => item.amount > 0);
+  // Sort Categories highest to lowest
+  const sortedCategories = Object.keys(categoryTotals)
+    .map(key => ({ name: key, amount: categoryTotals[key] }))
+    .sort((a, b) => b.amount - a.amount);
 
-    pieData.sort((a, b) => b.amount - a.amount);
+  // Helper for Icons
+  const getCategoryIcon = (catName) => {
+    const iconMap = { 'Food': 'silverware-fork-knife', 'Travel': 'car', 'Bills': 'file-document-outline', 'Shopping': 'shopping', 'Health': 'medical-bag', 'Other': 'dots-horizontal', 'Entertainment': 'movie-open', 'Education': 'school', 'Investment': 'chart-line' };
+    return iconMap[catName] || 'cash';
+  };
 
-    const handlePress = (name) => {
-        setSelectedCategory(selectedCategory === name ? null : name);
-    };
+  // Cashflow Bar Math
+  const cashflowTotal = totalIncome + totalExpense;
+  const incomePercent = cashflowTotal > 0 ? (totalIncome / cashflowTotal) * 100 : 50;
+  const expensePercent = cashflowTotal > 0 ? (totalExpense / cashflowTotal) * 100 : 50;
 
-    const activeItem = pieData.find((i) => i.name === selectedCategory);
-    const centerLabel = activeItem ? activeItem.name : "Total";
-    const centerAmount = activeItem ? activeItem.amount : totalSpent;
-    const centerColor = activeItem ? activeItem.color : colors.text;
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+      
+      {/* HEADER */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
+          <IconButton icon="arrow-left" size={24} iconColor={colors.text} style={{margin: 0}} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Analytics</Text>
+        <View style={{width: 40}} /> 
+      </View>
 
-    return (
-        <SafeAreaView
-            style={[styles.container, { backgroundColor: colors.background }]}
-            edges={["top", "left", "right"]}
-        >
-            <View style={styles.header}>
-                <TouchableOpacity
-                    onPress={() => navigation.goBack()}
-                    style={styles.backBtn}
-                >
-                    <IconButton
-                        icon="arrow-left"
-                        size={28}
-                        iconColor={colors.text}
-                        style={{ marginLeft: -10 }}
-                    />
-                </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>
-                    Financial Insights
+      {/* TIME FILTERS */}
+      <View style={styles.filterRow}>
+        {['Week', 'Month', 'Year'].map(f => (
+            <TouchableOpacity 
+                key={f} 
+                onPress={() => setTimeFilter(f)}
+                style={[styles.filterPill, timeFilter === f ? {backgroundColor: colors.primary} : {backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border}]}
+            >
+                <Text style={{color: timeFilter === f ? '#FFF' : colors.textSec, fontWeight: timeFilter === f ? 'bold' : '500'}}>{f}</Text>
+            </TouchableOpacity>
+        ))}
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        
+        {/* CASHFLOW SUMMARY CARD */}
+        <Surface style={[styles.cashflowCard, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.cardLabel, { color: colors.textSec }]}>Cashflow ({timeFilter})</Text>
+            
+            <View style={styles.netSavingsRow}>
+                <Text style={[styles.netSavingsAmount, { color: netSavings >= 0 ? colors.success : colors.error }]}>
+                    {netSavings >= 0 ? '+' : ''}{currency}{netSavings.toLocaleString('en-IN')}
                 </Text>
+                <Text style={[styles.netSavingsLabel, { color: colors.textSec }]}>Net Saved</Text>
             </View>
 
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-            >
-                {/* BUDGET CARD */}
-                <Surface
-                    style={[styles.budgetCard, { backgroundColor: colors.surface }]}
-                    elevation={3}
-                >
-                    <View style={styles.ringRow}>
-                        <ProgressChart
-                            data={budgetData}
-                            width={100}
-                            height={100}
-                            strokeWidth={10}
-                            radius={40}
-                            chartConfig={{
-                                backgroundGradientFrom: colors.surface,
-                                backgroundGradientTo: colors.surface,
-                                color: ringColor,
-                                strokeWidth: 2,
-                            }}
-                            hideLegend={true}
-                        />
-                        <View style={styles.budgetInfo}>
-                            <Text style={[styles.budgetLabel, { color: colors.textSec }]}>
-                                Monthly Budget
-                            </Text>
-                            <Text style={[styles.budgetValue, { color: colors.text }]}>
-                                {(percentageUsed * 100).toFixed(0)}% Used
-                            </Text>
-                            <View
-                                style={[
-                                    styles.barContainer,
-                                    { backgroundColor: colors.inputBg },
-                                ]}
-                            >
-                                <View
-                                    style={[
-                                        styles.barFill,
-                                        {
-                                            width: `${chartPercent * 100}%`,
-                                            backgroundColor: ringColor(1),
-                                        },
-                                    ]}
-                                />
-                            </View>
-                            <Text style={[styles.budgetMath, { color: colors.textSec }]}>
-                                {currency}
-                                {totalSpent.toLocaleString()} / {currency}
-                                {totalBudget.toLocaleString()}
-                            </Text>
-                        </View>
-                    </View>
-                </Surface>
+            {/* Visual Cashflow Bar */}
+            <View style={styles.cashflowBarContainer}>
+                <View style={[styles.cashflowIncomeSegment, { width: `${incomePercent}%`, backgroundColor: colors.success }]} />
+                <View style={[styles.cashflowExpenseSegment, { width: `${expensePercent}%`, backgroundColor: colors.error }]} />
+            </View>
 
-                {/* SPENDING BREAKDOWN */}
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                    Spending Breakdown
-                </Text>
+            <View style={styles.cashflowDetails}>
+                <View>
+                    <Text style={{color: colors.textSec, fontSize: 12, marginBottom: 2}}>Income</Text>
+                    <Text style={{color: colors.success, fontWeight: 'bold', fontSize: 16}}>+{currency}{totalIncome.toLocaleString('en-IN')}</Text>
+                </View>
+                <View style={{alignItems: 'flex-end'}}>
+                    <Text style={{color: colors.textSec, fontSize: 12, marginBottom: 2}}>Expenses</Text>
+                    <Text style={{color: colors.error, fontWeight: 'bold', fontSize: 16}}>-{currency}{totalExpense.toLocaleString('en-IN')}</Text>
+                </View>
+            </View>
+        </Surface>
 
-                <Surface
-                    style={[styles.chartCard, { backgroundColor: colors.surface }]}
-                    elevation={2}
-                >
-                    {pieData.length > 0 ? (
-                        <>
-                            <View style={styles.chartWrapper}>
-                                <PieChart
-                                    data={pieData}
-                                    width={screenWidth}
-                                    height={240}
-                                    chartConfig={{ color: (opacity = 1) => colors.text }} // Dynamic Color
-                                    accessor={"amount"}
-                                    backgroundColor={"transparent"}
-                                    paddingLeft={screenWidth / 4}
-                                    center={[0, 0]}
-                                    hasLegend={false}
-                                    absolute
-                                />
-                                <View
-                                    style={[
-                                        styles.donutHole,
-                                        { backgroundColor: colors.surface },
-                                    ]}
-                                >
-                                    <Text style={[styles.donutLabel, { color: centerColor }]}>
-                                        {centerLabel}
-                                    </Text>
-                                    <Text style={[styles.donutAmount, { color: colors.text }]}>
-                                        {currency}
-                                        {centerAmount.toLocaleString()}
-                                    </Text>
-                                </View>
-                            </View>
+        {/* TOP EXPENSES SECTION */}
+        <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Top Expenses</Text>
+            <Text style={{color: colors.textSec}}>{sortedCategories.length} Categories</Text>
+        </View>
 
-                            <Divider
-                                style={{ marginVertical: 15, backgroundColor: colors.border }}
-                            />
-                            <Text style={[styles.hintText, { color: colors.textSec }]}>
-                                Tap a category below to highlight 👆
-                            </Text>
+        <Surface style={[styles.breakdownCard, { backgroundColor: colors.surface }]}>
+            {sortedCategories.length === 0 ? (
+                <View style={styles.emptyState}>
+                    <Avatar.Icon size={60} icon="chart-donut-variant" style={{backgroundColor: colors.chip}} color={colors.textSec} />
+                    <Text style={{color: colors.textSec, marginTop: 10}}>No expenses this {timeFilter.toLowerCase()}.</Text>
+                </View>
+            ) : (
+                sortedCategories.map((cat, index) => (
+                    <CategoryBar 
+                        key={index}
+                        category={cat.name}
+                        amount={cat.amount}
+                        total={totalExpense}
+                        color={colors.primary}
+                        icon={getCategoryIcon(cat.name)}
+                        currency={currency}
+                    />
+                ))
+            )}
+        </Surface>
 
-                            <View style={styles.listContainer}>
-                                {pieData.map((item) => {
-                                    const isSelected = selectedCategory === item.name;
-                                    return (
-                                        <TouchableOpacity
-                                            key={item.name}
-                                            onPress={() => handlePress(item.name)}
-                                            style={[
-                                                styles.listItem,
-                                                isSelected && { backgroundColor: colors.inputBg },
-                                                { borderBottomColor: colors.border },
-                                            ]}
-                                        >
-                                            <View
-                                                style={{ flexDirection: "row", alignItems: "center" }}
-                                            >
-                                                <View
-                                                    style={[styles.dot, { backgroundColor: item.color }]}
-                                                />
-                                                <Text
-                                                    style={[
-                                                        styles.listName,
-                                                        { color: colors.text },
-                                                        isSelected && { fontWeight: "bold" },
-                                                    ]}
-                                                >
-                                                    {item.name}
-                                                </Text>
-                                            </View>
-                                            <View style={{ alignItems: "flex-end" }}>
-                                                <Text
-                                                    style={[
-                                                        styles.listAmount,
-                                                        { color: isSelected ? item.color : colors.text },
-                                                    ]}
-                                                >
-                                                    -{currency}
-                                                    {item.amount.toLocaleString()}
-                                                </Text>
-                                                <Text
-                                                    style={[
-                                                        styles.listPercent,
-                                                        { color: colors.textSec },
-                                                    ]}
-                                                >
-                                                    {((item.amount / totalSpent) * 100).toFixed(0)}%
-                                                </Text>
-                                            </View>
-                                        </TouchableOpacity>
-                                    );
-                                })}
-                            </View>
-                        </>
-                    ) : (
-                        <View style={styles.emptyState}>
-                            <IconButton
-                                icon="chart-donut"
-                                size={40}
-                                iconColor={colors.border}
-                            />
-                            <Text style={{ color: colors.textSec }}>
-                                No expenses yet this month.
-                            </Text>
-                        </View>
-                    )}
-                </Surface>
-            </ScrollView>
-        </SafeAreaView>
-    );
+      </ScrollView>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1 },
-    scrollContent: { padding: 20, paddingBottom: 50 },
-    header: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
-    headerTitle: { fontSize: 24, fontWeight: "800", marginLeft: 0 },
+  container: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 15, paddingVertical: 10 },
+  iconBtn: { padding: 5, borderRadius: 20 },
+  headerTitle: { fontSize: 22, fontWeight: '800' },
+  
+  filterRow: { flexDirection: 'row', justifyContent: 'center', marginVertical: 10, gap: 10 },
+  filterPill: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20 },
+  
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
 
-    budgetCard: { borderRadius: 24, padding: 20, marginBottom: 25, elevation: 3 },
-    ringRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "flex-start",
-    },
-    budgetInfo: { marginLeft: 20, flex: 1 },
-    budgetLabel: { fontSize: 12, textTransform: "uppercase", fontWeight: "600" },
-    budgetValue: { fontSize: 22, fontWeight: "800", marginBottom: 5 },
-    budgetMath: { fontSize: 14, marginTop: 5, fontWeight: "500" },
-    barContainer: {
-        height: 6,
-        borderRadius: 3,
-        width: "100%",
-        overflow: "hidden",
-    },
-    barFill: { height: "100%", borderRadius: 3 },
+  // Cashflow Card
+  cashflowCard: { borderRadius: 24, padding: 20, elevation: 2, marginTop: 10, marginBottom: 30 },
+  cardLabel: { fontSize: 13, fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 15 },
+  netSavingsRow: { alignItems: 'center', marginBottom: 25 },
+  netSavingsAmount: { fontSize: 36, fontWeight: '900' },
+  netSavingsLabel: { fontSize: 14, marginTop: 4 },
+  
+  cashflowBarContainer: { height: 12, borderRadius: 6, flexDirection: 'row', overflow: 'hidden', marginBottom: 15, backgroundColor: '#f0f0f0' },
+  cashflowIncomeSegment: { height: '100%', borderTopLeftRadius: 6, borderBottomLeftRadius: 6 },
+  cashflowExpenseSegment: { height: '100%', borderTopRightRadius: 6, borderBottomRightRadius: 6 },
+  
+  cashflowDetails: { flexDirection: 'row', justifyContent: 'space-between' },
 
-    sectionTitle: { fontSize: 18, fontWeight: "700", marginBottom: 15 },
+  // Breakdown Section
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 15, paddingHorizontal: 5 },
+  sectionTitle: { fontSize: 20, fontWeight: 'bold' },
+  breakdownCard: { borderRadius: 24, padding: 20, elevation: 2 },
+  emptyState: { alignItems: 'center', paddingVertical: 40 },
 
-    chartCard: { borderRadius: 24, padding: 20, marginBottom: 20, elevation: 2 },
-    chartWrapper: { alignItems: "center", justifyContent: "center", height: 240 },
-    donutHole: {
-        position: "absolute",
-        width: 140,
-        height: 140,
-        borderRadius: 70,
-        justifyContent: "center",
-        alignItems: "center",
-        zIndex: 10,
-        pointerEvents: "none",
-    },
-    donutLabel: {
-        fontSize: 12,
-        fontWeight: "600",
-        marginBottom: 2,
-        textTransform: "uppercase",
-    },
-    donutAmount: { fontSize: 24, fontWeight: "800" },
-
-    hintText: {
-        textAlign: "center",
-        fontSize: 12,
-        marginBottom: 10,
-        fontStyle: "italic",
-    },
-
-    listContainer: { paddingHorizontal: 10 },
-    listItem: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingVertical: 14,
-        borderBottomWidth: 1,
-        borderRadius: 12,
-        paddingHorizontal: 10,
-    },
-    dot: { width: 10, height: 10, borderRadius: 5, marginRight: 12 },
-    listName: { fontSize: 15, fontWeight: "500" },
-    listAmount: { fontSize: 15, fontWeight: "600" },
-    listPercent: { fontSize: 12, marginTop: 2 },
-
-    emptyState: { alignItems: "center", padding: 40 },
+  // Category Bar
+  catRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  catIconBox: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+  catDetails: { flex: 1 },
+  catHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  catName: { fontSize: 15, fontWeight: '600' },
+  catAmount: { fontSize: 15, fontWeight: '700' },
+  barBackground: { height: 6, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 3, overflow: 'hidden' },
+  barFill: { height: '100%', borderRadius: 3 },
 });
