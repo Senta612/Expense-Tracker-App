@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, Platform, KeyboardAvoidingView, Animated, Dimensions, LayoutAnimation, UIManager, PanResponder } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, Platform, KeyboardAvoidingView, Dimensions, LayoutAnimation, UIManager, Animated } from 'react-native';
 import { Button, Text, IconButton, SegmentedButtons, Surface } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,7 +8,6 @@ import AmountInput from '../components/AmountInput';
 
 const { width } = Dimensions.get('window');
 
-// Enable Layout Animation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
@@ -52,14 +51,13 @@ export default function AddExpenseScreen({ navigation, route }) {
   const [paymentApp, setPaymentApp] = useState(null);
   const [showPicker, setShowPicker] = useState(false);
 
-  // UI States
   const [toast, setToast] = useState({ visible: false, message: '', type: '' });
   const [isSaving, setIsSaving] = useState(false);
 
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-
-  // --- INCOME FREQUENCIES ---
+  const horizontalScrollRef = useRef(null);
   const incomeFrequencies = ['One-time', 'Weekly', 'Monthly', 'Yearly'];
+  const { availableBalance } = getBalanceData(); 
+  const enteredAmount = parseFloat(amount) || 0;
 
   useEffect(() => {
     if (existingExpense) {
@@ -72,54 +70,41 @@ export default function AddExpenseScreen({ navigation, route }) {
       
       const type = existingExpense.type || 'expense';
       setTransactionType(type);
-      
-      // Load correct method based on type
-      if (type === 'income') {
-          setPaymentMode(existingExpense.paymentMode || 'One-time');
-      } else {
-          setPaymentMode(existingExpense.paymentMode || 'UPI');
-      }
+      if (type === 'income') setPaymentMode(existingExpense.paymentMode || 'One-time');
+      else setPaymentMode(existingExpense.paymentMode || 'UPI');
+
+      // Scroll to correct page if editing an income
+      setTimeout(() => {
+          if(type === 'income') horizontalScrollRef.current?.scrollTo({ x: width, animated: false });
+      }, 100);
     }
   }, [existingExpense]);
 
-  // --- ANIMATED TYPE SWITCH ---
-  const handleTypeChange = (value) => {
-    if (transactionType === value) return; // Prevent unnecessary animation
-
-    Animated.timing(fadeAnim, { toValue: 0, duration: 100, useNativeDriver: true }).start(() => {
-        setTransactionType(value);
-        
-        // ✨ SMART DEFAULT: Auto-switch the method options when changing tabs
-        if (value === 'income') {
-            setPaymentMode('One-time');
-        } else {
-            setPaymentMode(paymentModes[0] || 'UPI');
-        }
-        setPaymentApp(null); // Reset UPI App if switching
-        
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); 
-        Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
-    });
+  // --- 🌟 NATIVE SWIPE HANDLERS ---
+  const handleTabTap = (value) => {
+    setTransactionType(value);
+    const index = value === 'expense' ? 0 : 1;
+    // Animate the scroll view to the selected tab
+    horizontalScrollRef.current?.scrollTo({ x: index * width, animated: true });
+    
+    // Auto switch payment modes
+    if (value === 'income') setPaymentMode('One-time');
+    else setPaymentMode(paymentModes[0] || 'UPI');
+    setPaymentApp(null);
   };
 
-  // --- 👆 SMART SWIPE GESTURE LOGIC ---
-  const panResponder = useRef(
-    PanResponder.create({
-      // IMPORTANT: Only capture if user swiped HORIZONTALLY more than vertically
-      onMoveShouldSetPanResponderCapture: (evt, gestureState) => {
-        return Math.abs(gestureState.dx) > 40 && Math.abs(gestureState.dy) < 20;
-      },
-      onPanResponderRelease: (evt, gestureState) => {
-        if (gestureState.dx > 50 && transactionType !== 'expense') {
-          // Swiped Right 👉 (Go to Expense)
-          handleTypeChange('expense');
-        } else if (gestureState.dx < -50 && transactionType !== 'income') {
-          // Swiped Left 👈 (Go to Income)
-          handleTypeChange('income');
-        }
-      },
-    })
-  ).current;
+  const handleScrollEnd = (e) => {
+    // Determine which page we landed on after swiping
+    const index = Math.round(e.nativeEvent.contentOffset.x / width);
+    const newType = index === 0 ? 'expense' : 'income';
+    
+    if (transactionType !== newType) {
+        setTransactionType(newType);
+        if (newType === 'income') setPaymentMode('One-time');
+        else setPaymentMode(paymentModes[0] || 'UPI');
+        setPaymentApp(null);
+    }
+  };
 
   const showToast = (msg, type = 'error') => {
     setToast({ visible: true, message: msg, type });
@@ -127,11 +112,7 @@ export default function AddExpenseScreen({ navigation, route }) {
   };
 
   const handleSave = () => {
-    if (!name || !amount) { 
-        showToast("Enter Title & Amount", 'error'); 
-        return; 
-    }
-    
+    if (!name || !amount) { showToast("Enter Title & Amount", 'error'); return; }
     setIsSaving(true); 
 
     const payload = {
@@ -142,7 +123,7 @@ export default function AddExpenseScreen({ navigation, route }) {
       category: transactionType === 'income' ? 'Income' : category, 
       description,
       date: date.toISOString(),
-      paymentMode, // Will save 'Weekly'/'Monthly' if it's an income!
+      paymentMode, 
       paymentApp: paymentMode === 'UPI' ? paymentApp : null,
     };
 
@@ -150,15 +131,8 @@ export default function AddExpenseScreen({ navigation, route }) {
         if (isEditing) editExpense(payload); else addExpense(payload);
         setIsSaving(false);
         navigation.goBack();
-    }, 500);
+    }, 400); // Fast save
   };
-
-  const scrollViewRef = useRef();
-  const { availableBalance } = getBalanceData(); 
-  const enteredAmount = parseFloat(amount) || 0;
-  const remainingAfter = transactionType === 'expense' 
-      ? availableBalance - enteredAmount 
-      : availableBalance + enteredAmount;
 
   const Label = ({ icon, text }) => (
     <View style={styles.labelRow}>
@@ -167,131 +141,146 @@ export default function AddExpenseScreen({ navigation, route }) {
     </View>
   );
 
-  const activeColor = transactionType === 'expense' ? colors.error : '#00C853';
-  const activeModes = transactionType === 'income' ? incomeFrequencies : paymentModes;
+  // --- REUSABLE FORM GENERATOR ---
+  const renderForm = (type) => {
+      const isIncome = type === 'income';
+      const activeColor = isIncome ? '#00C853' : colors.error;
+      const activeModes = isIncome ? incomeFrequencies : paymentModes;
+      const remainingAfter = isIncome ? availableBalance + enteredAmount : availableBalance - enteredAmount;
+
+      return (
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <AmountInput 
+                amount={amount} 
+                setAmount={setAmount} 
+                currency={currency} 
+                isIncome={isIncome}
+                color={activeColor} 
+            />
+            
+            <View style={styles.liveCalc}>
+                <Text style={{color: colors.textSec}}>Balance: {currency}{availableBalance.toLocaleString('en-IN')}</Text>
+                <Text style={{color: colors.textSec}}> → </Text>
+                <Text style={{color: activeColor, fontWeight: 'bold'}}>
+                    After: {currency}{remainingAfter.toLocaleString('en-IN')}
+                </Text>
+            </View>
+
+            <Surface style={[styles.formSection, { backgroundColor: colors.surface }]}>
+                
+                <Label icon="format-title" text="Title" />
+                <TextInput style={[styles.simpleInput, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]} placeholder={isIncome ? "e.g. Salary, Gift" : "e.g. Starbucks"} placeholderTextColor={colors.textSec} value={name} onChangeText={setName} />
+
+                {!isIncome && (
+                    <>
+                        <Label icon="shape-outline" text="Category" />
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+                        {categories.map((cat) => (
+                            <TouchableOpacity key={cat} onPress={() => setCategory(cat)} style={[styles.chip, category === cat ? { backgroundColor: colors.primary } : { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border }]}>
+                            <Text style={[styles.chipText, category === cat ? { color: '#FFF' } : { color: colors.text }]}>{cat}</Text>
+                            </TouchableOpacity>
+                        ))}
+                        </ScrollView>
+                    </>
+                )}
+
+                <Label icon={isIncome ? "calendar-sync" : "credit-card-outline"} text={isIncome ? "Income Frequency" : "Payment Method"} />
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+                {activeModes.map((mode) => (
+                    <TouchableOpacity key={mode} onPress={() => { setPaymentMode(mode); setPaymentApp(null); }} style={[styles.chip, paymentMode === mode ? { backgroundColor: colors.primary } : { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border }]}>
+                    <Text style={[styles.chipText, paymentMode === mode ? { color: '#FFF' } : { color: colors.text }]}>{mode}</Text>
+                    </TouchableOpacity>
+                ))}
+                </ScrollView>
+
+                {!isIncome && paymentMode === 'UPI' && upiApps && upiApps.length > 0 && (
+                <View style={styles.subOptionContainer}>
+                    <View style={styles.chipContainer}>
+                    {upiApps.map((app) => (
+                        <TouchableOpacity key={app} onPress={() => setPaymentApp(app === paymentApp ? null : app)} style={[styles.miniChip, paymentApp === app ? { backgroundColor: colors.chip, borderColor: colors.primary } : { borderColor: colors.border }]}>
+                        <Text style={[styles.miniChipText, paymentApp === app ? { color: colors.text, fontWeight: 'bold' } : { color: colors.textSec }]}>{app}</Text>
+                        </TouchableOpacity>
+                    ))}
+                    </View>
+                </View>
+                )}
+
+                <Label icon="calendar-month-outline" text="Date" />
+                <TouchableOpacity onPress={() => setShowPicker(true)} style={[styles.dateRow, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
+                <Text style={[styles.dateText, { color: colors.text }]}>{date.toDateString()}</Text>
+                <IconButton icon="calendar" size={20} iconColor={colors.text} />
+                </TouchableOpacity>
+                {showPicker && (<DateTimePicker value={date} mode="date" display="default" onChange={(e, d) => { setShowPicker(false); if (d) setDate(d); }} />)}
+
+                <Label icon="note-text-outline" text="Description (Optional)" />
+                <TextInput style={[styles.simpleInput, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border, height: 60, textAlignVertical: 'top' }]} placeholder="Add notes..." placeholderTextColor={colors.textSec} value={description} onChangeText={setDescription} multiline />
+
+                <Button 
+                    mode="contained" 
+                    onPress={handleSave} 
+                    loading={isSaving}
+                    style={[styles.saveBtn, { backgroundColor: activeColor }]} 
+                    textColor="#FFF" 
+                    labelStyle={{ fontSize: 16, fontWeight: 'bold' }}
+                >
+                    {isSaving ? "Saving..." : (isIncome ? 'Add to Wallet' : 'Save Expense')}
+                </Button>
+            </Surface>
+        </ScrollView>
+      )
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'left', 'right']}>
       
       <ToastNotification visible={toast.visible} message={toast.message} type={toast.type} colors={colors} />
 
-      {/* WRAP CONTENT IN SWIPE DETECTOR */}
-      <View style={{ flex: 1 }} {...panResponder.panHandlers}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <ScrollView ref={scrollViewRef} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-            
-            <View style={styles.header}>
-              <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-                <IconButton icon="close" size={24} iconColor={colors.text} style={{margin: 0}} />
-              </TouchableOpacity>
-              <Text style={[styles.headerTitle, { color: colors.text }]}>{isEditing ? 'Edit' : 'New'} Transaction</Text>
-              <View style={{width: 40}} /> 
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        
+        {/* HEADER */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
+            <IconButton icon="close" size={24} iconColor={colors.text} style={{margin: 0}} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>{isEditing ? 'Edit' : 'New'} Transaction</Text>
+          <View style={{width: 40}} /> 
+        </View>
+
+        {/* TOP TOGGLE BUTTONS */}
+        <View style={styles.toggleContainer}>
+          <SegmentedButtons
+              value={transactionType}
+              onValueChange={handleTabTap}
+              buttons={[
+                { value: 'expense', label: 'Expense', style: { backgroundColor: transactionType === 'expense' ? colors.error + '15' : 'transparent', borderColor: colors.border } },
+                { value: 'income', label: 'Income', style: { backgroundColor: transactionType === 'income' ? '#00C85315' : 'transparent', borderColor: colors.border } },
+              ]}
+              theme={{ colors: { secondaryContainer: 'transparent', onSecondaryContainer: transactionType === 'expense' ? colors.error : '#00C853', outline: colors.border } }}
+          />
+        </View>
+
+        {/* 🌟 NATIVE HORIZONTAL SCROLL FOR SWIPING */}
+        <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            ref={horizontalScrollRef}
+            onMomentumScrollEnd={handleScrollEnd} // Fires when swipe finishes
+            keyboardShouldPersistTaps="handled"
+            style={{ flex: 1 }}
+        >
+            {/* PAGE 1: EXPENSE */}
+            <View style={{ width }}>
+                {renderForm('expense')}
             </View>
 
-            <View style={styles.toggleContainer}>
-              <SegmentedButtons
-                  value={transactionType}
-                  onValueChange={handleTypeChange}
-                  buttons={[
-                  { 
-                      value: 'expense', 
-                      label: 'Expense', 
-                      icon: 'arrow-up-bold',
-                      style: { backgroundColor: transactionType === 'expense' ? colors.error + '15' : 'transparent', borderColor: colors.border }
-                  },
-                  { 
-                      value: 'income', 
-                      label: 'Income', 
-                      icon: 'arrow-down-bold',
-                      style: { backgroundColor: transactionType === 'income' ? '#00C85315' : 'transparent', borderColor: colors.border } 
-                  },
-                  ]}
-                  theme={{ colors: { secondaryContainer: 'transparent', onSecondaryContainer: activeColor, outline: colors.border } }}
-              />
+            {/* PAGE 2: INCOME */}
+            <View style={{ width }}>
+                {renderForm('income')}
             </View>
+        </ScrollView>
 
-            <Animated.View style={{ opacity: fadeAnim }}>
-              
-              <AmountInput 
-                  amount={amount} 
-                  setAmount={setAmount} 
-                  currency={currency} 
-                  isIncome={transactionType === 'income'}
-                  color={transactionType === 'income' ? '#00C853' : colors.text} 
-              />
-              
-              <View style={styles.liveCalc}>
-                  <Text style={{color: colors.textSec}}>Balance: {currency}{availableBalance.toLocaleString('en-IN')}</Text>
-                  <Text style={{color: colors.textSec}}> → </Text>
-                  <Text style={{color: activeColor, fontWeight: 'bold'}}>
-                      After: {currency}{remainingAfter.toLocaleString('en-IN')}
-                  </Text>
-              </View>
-
-              <Surface style={[styles.formSection, { backgroundColor: colors.surface }]}>
-                  
-                  <Label icon="format-title" text="Title" />
-                  <TextInput style={[styles.simpleInput, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]} placeholder={transactionType === 'income' ? "e.g. Salary, Gift" : "e.g. Starbucks"} placeholderTextColor={colors.textSec} value={name} onChangeText={setName} />
-
-                  {transactionType === 'expense' && (
-                      <>
-                          <Label icon="shape-outline" text="Category" />
-                          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-                          {categories.map((cat) => (
-                              <TouchableOpacity key={cat} onPress={() => setCategory(cat)} style={[styles.chip, category === cat ? { backgroundColor: colors.primary } : { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border }]}>
-                              <Text style={[styles.chipText, category === cat ? { color: '#FFF' } : { color: colors.text }]}>{cat}</Text>
-                              </TouchableOpacity>
-                          ))}
-                          </ScrollView>
-                      </>
-                  )}
-
-                  <Label icon={transactionType === 'income' ? "calendar-sync" : "credit-card-outline"} text={transactionType === 'income' ? "Income Frequency" : "Payment Method"} />
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-                  {activeModes.map((mode) => (
-                      <TouchableOpacity key={mode} onPress={() => { setPaymentMode(mode); setPaymentApp(null); }} style={[styles.chip, paymentMode === mode ? { backgroundColor: colors.primary } : { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border }]}>
-                      <Text style={[styles.chipText, paymentMode === mode ? { color: '#FFF' } : { color: colors.text }]}>{mode}</Text>
-                      </TouchableOpacity>
-                  ))}
-                  </ScrollView>
-
-                  {transactionType === 'expense' && paymentMode === 'UPI' && upiApps && upiApps.length > 0 && (
-                  <View style={styles.subOptionContainer}>
-                      <View style={styles.chipContainer}>
-                      {upiApps.map((app) => (
-                          <TouchableOpacity key={app} onPress={() => setPaymentApp(app === paymentApp ? null : app)} style={[styles.miniChip, paymentApp === app ? { backgroundColor: colors.chip, borderColor: colors.primary } : { borderColor: colors.border }]}>
-                          <Text style={[styles.miniChipText, paymentApp === app ? { color: colors.text, fontWeight: 'bold' } : { color: colors.textSec }]}>{app}</Text>
-                          </TouchableOpacity>
-                      ))}
-                      </View>
-                  </View>
-                  )}
-
-                  <Label icon="calendar-month-outline" text="Date" />
-                  <TouchableOpacity onPress={() => setShowPicker(true)} style={[styles.dateRow, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
-                  <Text style={[styles.dateText, { color: colors.text }]}>{date.toDateString()}</Text>
-                  <IconButton icon="calendar" size={20} iconColor={colors.text} />
-                  </TouchableOpacity>
-                  {showPicker && (<DateTimePicker value={date} mode="date" display="default" onChange={(e, d) => { setShowPicker(false); if (d) setDate(d); }} />)}
-
-                  <Label icon="note-text-outline" text="Description (Optional)" />
-                  <TextInput style={[styles.simpleInput, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border, height: 60, textAlignVertical: 'top' }]} placeholder="Add notes..." placeholderTextColor={colors.textSec} value={description} onChangeText={setDescription} multiline onFocus={() => setTimeout(() => scrollViewRef.current.scrollToEnd({ animated: true }), 100)} />
-
-                  <Button 
-                      mode="contained" 
-                      onPress={handleSave} 
-                      loading={isSaving}
-                      style={[styles.saveBtn, { backgroundColor: activeColor }]} 
-                      textColor="#FFF" 
-                      labelStyle={{ fontSize: 16, fontWeight: 'bold' }}
-                  >
-                      {isSaving ? "Saving..." : (transactionType === 'income' ? 'Add to Wallet' : 'Save Expense')}
-                  </Button>
-              </Surface>
-            </Animated.View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -321,7 +310,6 @@ const styles = StyleSheet.create({
   dateText: { fontSize: 15, fontWeight: '500' },
   saveBtn: { marginTop: 30, paddingVertical: 6, borderRadius: 16, elevation: 2, marginBottom: 20 },
 
-  // TOAST STYLES
   toast: { position: 'absolute', top: 10, alignSelf: 'center', width: '92%', borderRadius: 16, padding: 12, flexDirection: 'row', alignItems: 'center', zIndex: 1000, elevation: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5 },
   toastText: { color: '#FFF', fontWeight: 'bold', fontSize: 16, flex: 1, marginLeft: 5 },
 });
