@@ -17,8 +17,22 @@ const KEYWORD_MAP = {
 };
 const SUCCESS_MSGS = ["Got it! Saved", "Done! Added", "Noted! Tracked", "Easy peasy! Added", "Roger that! Saved"];
 
-// Premium color palette for chart
-const PREMIUM_COLORS = ['#6B52FF', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#DDA0DD'];
+// Premium 10-color palette for top 10 categories (by rank)
+const COLOR_PALETTE = [
+  '#6B52FF', // Purple - #1
+  '#FF6B6B', // Coral Red - #2
+  '#4ECDC4', // Teal - #3
+  '#45B7D1', // Sky Blue - #4
+  '#FFA726', // Orange - #5
+  '#96CEB4', // Sage Green - #6
+  '#DDA0DD', // Plum - #7
+  '#42A5F5', // Royal Blue - #8
+  '#FF7043', // Deep Orange - #9
+  '#26A69A', // Green Teal - #10
+];
+
+// Fallback color for categories beyond top 10
+const FALLBACK_COLOR = '#B0BEC5';
 
 // --- 1. PREMIUM LEGEND ANIMATION COMPONENT ---
 const LegendItem = ({ d, index, colors, currency }) => {
@@ -196,14 +210,16 @@ export default function ChatScreen({ navigation }) {
       totalSum += e.amount;
     });
     
+    // Sort categories by amount (highest first)
     const sortedCats = Object.keys(catTotals).sort((a, b) => catTotals[b] - catTotals[a]);
     
+    // Assign colors by rank - top 10 get unique colors, rest get fallback
     const chartData = sortedCats.map((cat, index) => {
       const val = catTotals[cat];
       return { 
         name: cat, 
         population: val, 
-        color: PREMIUM_COLORS[index % PREMIUM_COLORS.length], 
+        color: index < COLOR_PALETTE.length ? COLOR_PALETTE[index] : FALLBACK_COLOR, 
         legendFontColor: colors.text, 
         legendFontSize: 12,
         percentage: ((val / totalSum) * 100).toFixed(0) + '%'
@@ -212,6 +228,7 @@ export default function ChatScreen({ navigation }) {
     
     return { type: 'chart', text: "Spending Breakdown", data: chartData, totalSum };
   };
+
 
   const handleAnalysisCommand = () => {
     const expenseList = expenses.filter(e => e.type === 'expense' || !e.type);

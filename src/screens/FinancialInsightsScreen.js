@@ -7,18 +7,22 @@ import { useExpenses } from '../context/ExpenseContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Premium color palette for categories
-const CATEGORY_COLORS = {
-  'Food': '#FF6B6B',
-  'Travel': '#4ECDC4',
-  'Bills': '#45B7D1',
-  'Shopping': '#96CEB4',
-  'Health': '#FFEAA7',
-  'Entertainment': '#DDA0DD',
-  'Education': '#98D8C8',
-  'Investment': '#F7DC6F',
-  'Other': '#BDC3C7',
-};
+// Premium 10-color palette for top 10 categories (by rank)
+const COLOR_PALETTE = [
+  '#6B52FF', // Purple - #1
+  '#FF6B6B', // Coral Red - #2
+  '#4ECDC4', // Teal - #3
+  '#45B7D1', // Sky Blue - #4
+  '#FFA726', // Orange - #5
+  '#96CEB4', // Sage Green - #6
+  '#DDA0DD', // Plum - #7
+  '#42A5F5', // Royal Blue - #8
+  '#FF7043', // Deep Orange - #9
+  '#26A69A', // Green Teal - #10
+];
+
+// Fallback color for categories beyond top 10
+const FALLBACK_COLOR = '#B0BEC5'; // Muted blue-gray
 
 // Category icon mapping (professional icons only - no emojis)
 const CATEGORY_ICONS = {
@@ -112,11 +116,12 @@ const InteractiveDonutChart = ({
         ...item,
         percentage,
         pathData,
-        color: item.color || CATEGORY_COLORS[item.name] || '#BDC3C7',
+        color: item.color,
         isSelected,
       };
     });
   }, [data, total, selectedIndex, center, radius]);
+
 
   const handleSegmentPress = (index) => {
     onSelect(index === selectedIndex ? null : index);
@@ -481,18 +486,22 @@ export default function FinancialInsightsScreen({ navigation }) {
     return acc;
   }, {});
 
-  // Sort categories by amount
+  // Sort categories by amount and assign colors by rank
   const sortedCategories = useMemo(() => {
-    return Object.entries(categoryTotals)
-      .map(([name, value]) => ({
+    const sorted = Object.entries(categoryTotals)
+      .map(([name, value], index) => ({
         name,
         value,
         percentage: totalExpense > 0 ? (value / totalExpense) * 100 : 0,
-        color: CATEGORY_COLORS[name] || '#BDC3C7',
+        // Color based on rank (index) - top 10 get unique colors, rest get fallback
+        color: index < COLOR_PALETTE.length ? COLOR_PALETTE[index] : FALLBACK_COLOR,
         icon: CATEGORY_ICONS[name] || 'dots-horizontal',
+        rank: index,
       }))
       .sort((a, b) => b.value - a.value);
+    return sorted;
   }, [categoryTotals, totalExpense]);
+
 
   const monthlyBudget = budget || 7000;
 
