@@ -19,19 +19,10 @@ const SUCCESS_MSGS = ["Got it! Saved", "Done! Added", "Noted! Tracked", "Easy pe
 
 // Premium 10-color palette for top 10 categories (by rank)
 const COLOR_PALETTE = [
-  '#6B52FF', // Purple - #1
-  '#FF6B6B', // Coral Red - #2
-  '#4ECDC4', // Teal - #3
-  '#45B7D1', // Sky Blue - #4
-  '#FFA726', // Orange - #5
-  '#96CEB4', // Sage Green - #6
-  '#DDA0DD', // Plum - #7
-  '#42A5F5', // Royal Blue - #8
-  '#FF7043', // Deep Orange - #9
-  '#26A69A', // Green Teal - #10
+  '#6B52FF', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA726', 
+  '#96CEB4', '#DDA0DD', '#42A5F5', '#FF7043', '#26A69A'
 ];
 
-// Fallback color for categories beyond top 10
 const FALLBACK_COLOR = '#B0BEC5';
 
 // --- 1. PREMIUM LEGEND ANIMATION COMPONENT ---
@@ -50,6 +41,7 @@ const LegendItem = ({ d, index, colors, currency }) => {
     <Animated.View style={[styles.legendRow, { borderBottomColor: colors.border, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <View style={[styles.legendDot, { backgroundColor: d.color }]} />
+        {/* ✨ Ensured text strictly uses the dynamic theme colors */}
         <Text style={{ fontSize: 15, color: colors.text, fontWeight: '600' }}>{d.name}</Text>
       </View>
       <View style={{ alignItems: 'flex-end' }}>
@@ -72,36 +64,47 @@ const AnimatedChartBubble = ({ item, colors, currency }) => {
     ]).start();
   }, []);
 
-  // Responsive chart size - safe for container
   const chartSize = Math.min(screenWidth * 0.55, 180);
   const donutHoleSize = chartSize * 0.45;
+
+  // ✨ We dynamically map the data AT RENDER TIME so it immediately switches colors if user toggles Dark Mode
+  const dynamicChartData = item.data.map(d => ({
+    ...d,
+    legendFontColor: colors.text,
+    legendFontSize: 12
+  }));
 
   return (
     <Animated.View style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }], width: '100%' }}>
       <Text style={[styles.chartTitle, { color: colors.text }]}>Spending Breakdown</Text>
 
-      {/* DONUT CONTAINER - Square and centered */}
+      {/* DONUT CONTAINER */}
       <View style={[styles.donutContainer, { width: chartSize, height: chartSize, aspectRatio: 1 }]}>
         <PieChart 
-          data={item.data} 
-          width={chartSize} 
+          data={dynamicChartData} 
+          width={chartSize + 60} // Added width buffer so it doesn't clip
           height={chartSize} 
           hasLegend={false}
-          chartConfig={{ color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})` }} 
+          // ✨ FIX: Dynamic text colors instead of hardcoded black
+          chartConfig={{ 
+            color: (opacity = 1) => colors.text,
+            labelColor: (opacity = 1) => colors.text 
+          }} 
           accessor={"population"} 
           backgroundColor={"transparent"} 
-          paddingLeft={"0"} 
-          absolute 
+          paddingLeft={"30"} // Centers the pie perfectly
+          // ✨ FIX: `absolute` has been removed here to hide the black overlapping numbers
         />
         
-        {/* DONUT HOLE - Scales proportionally */}
+        {/* DONUT HOLE - Uses strictly colors.surface and colors.text */}
         <View style={[styles.donutHole, { backgroundColor: colors.surface, width: donutHoleSize, height: donutHoleSize, borderRadius: donutHoleSize / 2 }]}>
           <Text style={{ fontSize: 8, color: colors.textSec, fontWeight: '700', letterSpacing: 1 }}>TOTAL</Text>
           <Text style={{ fontSize: 14, fontWeight: '900', color: colors.text, marginTop: 2 }}>{currency}{item.totalSum.toLocaleString('en-IN')}</Text>
         </View>
+
       </View>
 
-      <Text style={styles.chartHint}>Tap a category below</Text>
+      <Text style={[styles.chartHint, { color: colors.textSec }]}>Tap a category below</Text>
 
       {/* CASCADING LEGEND LIST */}
       <View style={{ width: '100%' }}>
@@ -112,7 +115,6 @@ const AnimatedChartBubble = ({ item, colors, currency }) => {
     </Animated.View>
   );
 };
-
 
 
 export default function ChatScreen({ navigation }) {
@@ -210,25 +212,20 @@ export default function ChatScreen({ navigation }) {
       totalSum += e.amount;
     });
     
-    // Sort categories by amount (highest first)
     const sortedCats = Object.keys(catTotals).sort((a, b) => catTotals[b] - catTotals[a]);
     
-    // Assign colors by rank - top 10 get unique colors, rest get fallback
     const chartData = sortedCats.map((cat, index) => {
       const val = catTotals[cat];
       return { 
         name: cat, 
         population: val, 
         color: index < COLOR_PALETTE.length ? COLOR_PALETTE[index] : FALLBACK_COLOR, 
-        legendFontColor: colors.text, 
-        legendFontSize: 12,
         percentage: ((val / totalSum) * 100).toFixed(0) + '%'
       };
     });
     
     return { type: 'chart', text: "Spending Breakdown", data: chartData, totalSum };
   };
-
 
   const handleAnalysisCommand = () => {
     const expenseList = expenses.filter(e => e.type === 'expense' || !e.type);
@@ -314,7 +311,6 @@ export default function ChatScreen({ navigation }) {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       
-      {/* HEADER */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
           <IconButton icon="arrow-left" size={24} iconColor={colors.text} style={{margin: 0}} />
@@ -347,7 +343,6 @@ export default function ChatScreen({ navigation }) {
           </View>
         )}
         
-        {/* SUGGESTION CHIPS */}
         <View style={styles.suggestionsContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 15, alignItems: 'center' }}>
             {suggestions.map((chip, index) => (
@@ -362,7 +357,6 @@ export default function ChatScreen({ navigation }) {
           </ScrollView>
         </View>
 
-        {/* INPUT */}
         <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
           <TextInput
             ref={inputRef}
@@ -376,7 +370,7 @@ export default function ChatScreen({ navigation }) {
           />
           <TouchableOpacity onPress={() => sendMessage()} disabled={!input.trim()}>
             <View style={[styles.sendButton, { backgroundColor: input.trim() ? colors.primary : colors.border }]}>
-              <IconButton icon="send" size={18} iconColor={input.trim() ? '#FFF' : colors.textSec} style={{margin: 0}} />
+              <IconButton icon="send" size={18} iconColor={input.trim() ? '#FFFFFF' : colors.textSec} style={{margin: 0}} />
             </View>
           </TouchableOpacity>
         </View>
@@ -408,11 +402,10 @@ const styles = StyleSheet.create({
   
   undoBtn: { marginTop: 10, paddingVertical: 8, paddingHorizontal: 14, backgroundColor: 'rgba(0,0,0,0.05)', alignSelf: 'flex-start', borderRadius: 14 },
 
-  // CHART STYLES
   chartTitle: { fontSize: 17, fontWeight: '700', marginBottom: 15, textAlign: 'center' },
-  donutContainer: { alignItems: 'center', justifyContent: 'center', marginBottom: 15, overflow: 'visible' },
+  donutContainer: { alignItems: 'center', justifyContent: 'center', marginBottom: 15, alignSelf: 'center' },
   donutHole: { position: 'absolute', alignItems: 'center', justifyContent: 'center', shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 10 },
-  chartHint: { textAlign: 'center', fontSize: 11, color: '#999', marginBottom: 15, fontStyle: 'italic' },
+  chartHint: { textAlign: 'center', fontSize: 11, marginBottom: 15, fontStyle: 'italic' },
   legendRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1 },
   legendDot: { width: 12, height: 12, borderRadius: 6, marginRight: 12 },
 
