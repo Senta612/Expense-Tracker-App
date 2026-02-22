@@ -36,37 +36,49 @@ const CATEGORY_ICONS = {
 // --- INTERACTIVE DONUT CHART COMPONENT ---
 const InteractiveDonutChart = ({ 
   data, 
-  size = 180, 
-  strokeWidth = 28, 
+  size = 160, 
+  strokeWidth = 24, 
   selectedIndex, 
   onSelect,
   centerData 
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.9)).current;
-  const centerLabelAnim = useRef(new Animated.Value(1)).current;
+  const scaleAnim = useRef(new Animated.Value(0.85)).current;
+  const centerFadeAnim = useRef(new Animated.Value(0)).current;
+  const centerScaleAnim = useRef(new Animated.Value(0.9)).current;
   
+  // Calculate center and radius
   const center = size / 2;
   const radius = (size - strokeWidth) / 2;
+  const donutHoleSize = size * 0.42; // Proportional hole size
   
   // Calculate total
   const total = useMemo(() => data.reduce((sum, item) => sum + item.value, 0), [data]);
 
-  // Animate on mount
+  // Animate on mount - premium chart load
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-      Animated.spring(scaleAnim, { toValue: 1, friction: 8, tension: 40, useNativeDriver: true })
+    Animated.sequence([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.spring(scaleAnim, { toValue: 1, friction: 8, tension: 40, useNativeDriver: true }),
+    ]).start();
+    
+    // Center content fade in
+    Animated.sequence([
+      Animated.delay(200),
+      Animated.parallel([
+        Animated.timing(centerFadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.spring(centerScaleAnim, { toValue: 1, friction: 10, tension: 50, useNativeDriver: true }),
+      ])
     ]).start();
   }, []);
 
-  // Animate center content when selection changes
+  // Animate center content when selection changes - crossfade
   useEffect(() => {
     Animated.sequence([
-      Animated.timing(centerLabelAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
-      Animated.timing(centerLabelAnim, { toValue: 1, duration: 150, useNativeDriver: true })
+      Animated.timing(centerFadeAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
+      Animated.timing(centerFadeAnim, { toValue: 1, duration: 200, useNativeDriver: true })
     ]).start();
-  }, [selectedIndex]);
+  }, [selectedIndex, centerData]);
 
   // Calculate segments
   let currentAngle = -90;
@@ -112,56 +124,68 @@ const InteractiveDonutChart = ({
 
   const displayContent = selectedIndex !== null ? centerData : { label: 'TOTAL', amount: total };
 
-  // Subtle scale increase for selected segment (max 1.03-1.05)
-  const selectedStrokeWidth = segment => segment.isSelected ? strokeWidth * 1.03 : strokeWidth;
+  // Subtle scale for selected segment (1.04 = 4% increase)
+  const getStrokeWidth = (segment) => segment.isSelected ? strokeWidth * 1.04 : strokeWidth;
 
   return (
-    <Animated.View 
-      style={[
-        styles.chartContainer, 
-        { 
-          width: size, 
-          height: size, 
-          opacity: fadeAnim, 
-          transform: [{ scale: scaleAnim }],
-          overflow: 'visible',
-        }
-      ]}
-    >
-      <Svg width={size} height={size}>
-        <G>
-          {segments.map((segment, index) => (
-            <Path
-              key={index}
-              d={segment.pathData}
-              stroke={segment.color}
-              strokeWidth={selectedStrokeWidth(segment)}
-              fill="none"
-              strokeLinecap="butt"
-              opacity={selectedIndex !== null && !segment.isSelected ? 0.4 : 1}
-              onPress={() => handleSegmentPress(index)}
-            />
-          ))}
-        </G>
-      </Svg>
+    <View style={[styles.chartWrapper, { width: size, height: size }]}>
+      <Animated.View 
+        style={[
+          styles.chartContainer, 
+          { 
+            width: size, 
+            height: size, 
+            opacity: fadeAnim, 
+            transform: [{ scale: scaleAnim }],
+            overflow: 'visible',
+          }
+        ]}
+      >
+        <Svg width={size} height={size}>
+          <G>
+            {segments.map((segment, index) => (
+              <Path
+                key={index}
+                d={segment.pathData}
+                stroke={segment.color}
+                strokeWidth={getStrokeWidth(segment)}
+                fill="none"
+                strokeLinecap="butt"
+                opacity={selectedIndex !== null && !segment.isSelected ? 0.35 : 1}
+                onPress={() => handleSegmentPress(index)}
+              />
+            ))}
+          </G>
+        </Svg>
+      </Animated.View>
       
-      {/* Center Display */}
-      <View style={styles.chartCenterOverlay}>
-        <Animated.Text style={[styles.centerLabel, { opacity: centerLabelAnim }]}>
+      {/* Center Display - perfectly centered using flex */}
+      <Animated.View 
+        style={[
+          styles.chartCenterOverlay, 
+          { 
+            opacity: centerFadeAnim, 
+            transform: [{ scale: centerScaleAnim }],
+          }
+        ]}
+        pointerEvents="none"
+      >
+        <Text style={[styles.centerLabel, { color: '#888' }]}>
           {displayContent.label}
-        </Animated.Text>
-        <Animated.Text style={[styles.centerAmount, { opacity: centerLabelAnim }]}>
+        </Text>
+        <Text style={[styles.centerAmount, { color: '#1A1A1A' }]}>
           {displayContent.amount}
-        </Animated.Text>
+        </Text>
         {selectedIndex !== null && (
           <Text style={styles.centerPercentage}>
             {displayContent.percentage}%
           </Text>
         )}
-      </View>
-    </Animated.View>
+      </Animated.View>
+    </View>
   );
 };
+
 
 
 // --- BUDGET CARD COMPONENT ---
@@ -638,6 +662,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 16,
   },
+  chartWrapper: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   chartContainer: {
     position: 'relative',
     alignItems: 'center',
@@ -645,10 +674,12 @@ const styles = StyleSheet.create({
   },
   chartCenterOverlay: {
     position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{ translateX: -50 }, { translateY: -25 }],
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   centerLabel: {
     fontSize: 10,
