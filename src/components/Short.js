@@ -1,12 +1,21 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Text, IconButton } from 'react-native-paper';
 import { useExpenses } from '../context/ExpenseContext'; // <--- Import Context
 
-export default function Short({ filter, setFilter, activeSort, onSortPress }) {
+export default function Short({ filter, setFilter, activeSort, onSortPress, sortBtnRef }) {
   const { colors } = useExpenses(); // <--- Get Theme Colors
+  const internalSortRef = useRef(null);
+  const sortRef = sortBtnRef || internalSortRef;
 
   const filters = ['All', 'Today', 'Week', 'Month', 'Year'];
+
+  const handleSortPress = () => {
+    if (onSortPress && sortRef?.current) {
+      // Pass the ref to the parent so it can measure position
+      onSortPress(sortRef);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -17,7 +26,8 @@ export default function Short({ filter, setFilter, activeSort, onSortPress }) {
       >
         {/* Sort Button (Small Icon) */}
         <TouchableOpacity 
-            onPress={onSortPress} 
+            ref={sortRef}
+            onPress={handleSortPress} 
             style={[
                 styles.sortBtn, 
                 { backgroundColor: colors.surface, borderColor: colors.border } // Theme Colors

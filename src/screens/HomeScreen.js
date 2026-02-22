@@ -149,33 +149,99 @@ const ExpensePage = ({ filter, searchQuery, sortBy, navigation, onConfirmDelete,
   );
 };
 
-// --- 3. CUSTOM ANIMATED POPUP MENU ---
-const PopupMenu = ({ visible, onClose, children, position, colors }) => {
-  const scaleAnim = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const [showModal, setShowModal] = useState(visible);
+// Screen constants for boundary checking
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const MENU_WIDTH = 220;
+const SCREEN_PADDING = 8;
 
+// --- 3. 🌟 PROFESSIONAL ANCHORED POPUP MENU ---
+const PopupMenu = ({ visible, onClose, children, triggerRef, colors }) => {
+  const scaleAnim = useRef(new Animated.Value(0.85)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [showModal, setShowModal] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [menuLayout, setMenuLayout] = useState({ width: 220, height: 200 });
+  const triggerPosRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
+  const popupViewRef = useRef(null);
+
+  // Calculate position with screen boundary checking
+  const calculatePosition = (triggerX, triggerY, triggerW, triggerH, menuW) => {
+    let x = triggerX + triggerW - menuW; // Align right edge with trigger right
+    let y = triggerY + triggerH; // Start at bottom of trigger
+
+    // ✅ Prevent left overflow
+    if (x < SCREEN_PADDING) {
+      x = SCREEN_PADDING;
+    }
+
+    // ✅ Prevent right overflow
+    if (x + menuW > SCREEN_WIDTH - SCREEN_PADDING) {
+      x = SCREEN_WIDTH - menuW - SCREEN_PADDING;
+    }
+
+    return { x, y };
+  };
+
+  // Measure trigger position when visible changes
   useEffect(() => {
-    if (visible) {
+    if (visible && triggerRef?.current) {
+      // Store trigger position
+      triggerRef.current.measureInWindow((x, y, width, height) => {
+        triggerPosRef.current = { x, y, width, height };
+        const menuW = menuLayout.width || MENU_WIDTH;
+        const newPos = calculatePosition(x, y, width, height, menuW);
+        setPosition(newPos);
+      });
       setShowModal(true);
+    } else if (!visible && showModal) {
+      // Animate out
       Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 1, duration: 150, useNativeDriver: true }),
-        Animated.spring(scaleAnim, { toValue: 1, friction: 9, tension: 70, useNativeDriver: true })
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
-        Animated.timing(scaleAnim, { toValue: 0.9, duration: 100, useNativeDriver: true })
-      ]).start(() => setShowModal(false));
+        Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+        Animated.timing(scaleAnim, { toValue: 0.85, duration: 150, useNativeDriver: true })
+      ]).start(() => {
+        setShowModal(false);
+        // Reset for next open
+        scaleAnim.setValue(0.85);
+        fadeAnim.setValue(0);
+      });
     }
   }, [visible]);
 
-  if (!showModal || !position) return null;
+  // Animate in when modal is shown
+  useEffect(() => {
+    if (showModal && visible) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 180, useNativeDriver: true }),
+        Animated.spring(scaleAnim, { toValue: 1, friction: 7, tension: 50, useNativeDriver: true })
+      ]).start();
+    }
+  }, [showModal, visible]);
+
+  // Update position when menu layout changes (for dynamic sizing) with boundary checking
+  useEffect(() => {
+    if (showModal && triggerPosRef.current.width > 0) {
+      const { x, y, width, height } = triggerPosRef.current;
+      const newPos = calculatePosition(x, y, width, height, menuLayout.width);
+      setPosition(newPos);
+    }
+  }, [menuLayout.width, menuLayout.height, showModal]);
+
+
+  const handleMenuLayout = (event) => {
+    const { width, height } = event.nativeEvent.layout;
+    if (width > 0 && height > 0) {
+      setMenuLayout({ width, height });
+    }
+  };
+
+  if (!showModal) return null;
 
   return (
-    <Modal transparent visible={showModal} onRequestClose={onClose}>
+    <Modal transparent visible={showModal} onRequestClose={onClose} animationType="none">
       <TouchableOpacity activeOpacity={1} onPress={onClose} style={styles.modalOverlay}>
         <Animated.View
+          ref={popupViewRef}
+          onLayout={handleMenuLayout}
           style={[
             styles.popupMenu,
             {
@@ -183,7 +249,7 @@ const PopupMenu = ({ visible, onClose, children, position, colors }) => {
               top: position.y,
               left: position.x,
               opacity: fadeAnim,
-              transform: [{ scale: scaleAnim }, { translateY: 0 }]
+              transform: [{ scale: scaleAnim }]
             }
           ]}
         >
@@ -193,6 +259,7 @@ const PopupMenu = ({ visible, onClose, children, position, colors }) => {
     </Modal>
   );
 };
+
 
 // --- 4. BOTTOM SHEET ---
 const BottomSheet = ({ visible, onClose, children, title, colors }) => {
@@ -247,7 +314,7 @@ const AlertModal = ({ visible, onClose, children, colors }) => {
   );
 };
 
-// --- ✨ 6. ONBOARDING TUTORIAL MODAL ---
+// --- 6. ONBOARDING TUTORIAL MODAL ---
 const OnboardingTutorial = ({ visible, onComplete, colors }) => {
     const [step, setStep] = useState(0);
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -305,7 +372,7 @@ export default function HomeScreen({ navigation }) {
   const {
     deleteExpense, addExpense, username, currency, budget, budgetPeriod,
     updateBudgetConfig, getBalanceData, colors, isDark,
-    isFirstLaunch, completeTutorial // ✨ EXTRACTED ONBOARDING LOGIC
+    isFirstLaunch, completeTutorial 
   } = useExpenses();
 
   const [activeFilterIndex, setActiveFilterIndex] = useState(0);
@@ -313,10 +380,14 @@ export default function HomeScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('RECENT');
 
+  // ✨ Refs to capture exact button positions for popup menus
+  const headerBtnRef = useRef(null);
+  const sortBtnRef = useRef(null);
+
   // App Menus & Modals
   const [headerMenuVisible, setHeaderMenuVisible] = useState(false);
   const [showSortModal, setShowSortModal] = useState(false);
-  const [sortMenuPos, setSortMenuPos] = useState({ x: 0, y: 0, width: 0, height: 0 });
+
   const [showBudgetModal, setShowBudgetModal] = useState(false);
   const [tempBudget, setTempBudget] = useState(budget);
   const [tempPeriod, setTempPeriod] = useState(budgetPeriod || 'Monthly');
@@ -333,7 +404,16 @@ export default function HomeScreen({ navigation }) {
     if (index !== -1) { setActiveFilterIndex(index); flatListRef.current?.scrollToIndex({ index, animated: true }); }
   };
 
-  const handleSortButtonPress = (layout) => { setSortMenuPos({ x: layout.x, y: layout.y + layout.height + 4 }); setShowSortModal(true); };
+  const handleHeaderMenuPress = () => {
+    setHeaderMenuVisible(true);
+  };
+
+  // ✨ PERFECT SORT POSITIONING using ref
+  const handleSortButtonPress = (sortRef) => { 
+    if (sortRef?.current) {
+      setShowSortModal(true);
+    }
+  };
 
   const onViewableItemsChanged = useRef(({ viewableItems }) => { if (viewableItems.length > 0) setActiveFilterIndex(viewableItems[0].index); }).current;
   const animateLayout = () => { LayoutAnimation.configureNext({ duration: 300, create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity }, update: { type: LayoutAnimation.Types.easeInEaseOut }, delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity } }); };
@@ -351,7 +431,6 @@ export default function HomeScreen({ navigation }) {
 
   const { spentThisPeriod, availableBalance } = getBalanceData();
 
-  // ✨ REUSABLE PREMIUM MENU ITEM
   const PremiumMenuOption = ({ label, icon, color, onPress }) => (
     <TouchableOpacity activeOpacity={0.7} onPress={onPress} style={styles.premiumMenuRow}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -393,9 +472,11 @@ export default function HomeScreen({ navigation }) {
             <IconButton icon="chart-pie" iconColor={colors.text} size={24} style={{ margin: 0 }} />
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => setHeaderMenuVisible(true)} style={[styles.chartButton, { backgroundColor: colors.surface }]}>
-            <IconButton icon="dots-vertical" iconColor={colors.text} size={24} style={{ margin: 0 }} />
-          </TouchableOpacity>
+          <View ref={headerBtnRef} collapsable={false}>
+            <TouchableOpacity onPress={handleHeaderMenuPress} style={[styles.chartButton, { backgroundColor: colors.surface }]}>
+              <IconButton icon="dots-vertical" iconColor={colors.text} size={24} style={{ margin: 0 }} />
+            </TouchableOpacity>
+          </View>
 
         </View>
       </View>
@@ -425,28 +506,30 @@ export default function HomeScreen({ navigation }) {
         {searchQuery.length > 0 && <TouchableOpacity onPress={() => setSearchQuery('')}><IconButton icon="close-circle" size={16} iconColor={colors.textSec} style={{ margin: 0 }} /></TouchableOpacity>}
       </View>
 
-      <Short filter={FILTERS[activeFilterIndex]} setFilter={handleFilterPress} activeSort={sortBy} onSortPress={handleSortButtonPress} />
+      {/* THE CUSTOM SHORT COMPONENT */}
+      <Short filter={FILTERS[activeFilterIndex]} setFilter={handleFilterPress} activeSort={sortBy} onSortPress={handleSortButtonPress} sortBtnRef={sortBtnRef} />
+
 
       <FlatList ref={flatListRef} data={FILTERS} keyExtractor={(item) => item} horizontal pagingEnabled showsHorizontalScrollIndicator={false} onViewableItemsChanged={onViewableItemsChanged} viewabilityConfig={{ itemVisiblePercentThreshold: 50 }} renderItem={({ item }) => (
         <ExpensePage filter={item} searchQuery={searchQuery} sortBy={sortBy} navigation={navigation} onConfirmDelete={confirmDelete} parentExpandedId={expandedId} setParentExpandedId={(id) => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setExpandedId(id); }} />
       )}
       />
 
-      {/* 🚀 LEFT FAB: Ask FinBot */}
       <FAB icon="robot-outline" color="#fff" style={[styles.fabLeft, { backgroundColor: colors.accent || '#6200EE' }]} onPress={() => navigation.navigate('Chat')} />
-
-      {/* 🚀 RIGHT FAB: Manual Add */}
       <FAB icon="plus" color="#fff" style={[styles.fab, { backgroundColor: colors.primary }]} onPress={() => navigation.navigate('AddExpense')} />
 
       {/* 🛠️ MODALS & MENUS */}
-      <PopupMenu visible={headerMenuVisible} onClose={() => setHeaderMenuVisible(false)} position={{ x: width - 230, y: 70 }} colors={colors}>
+      
+      {/* HEADER MENU POPUP */}
+      <PopupMenu visible={headerMenuVisible} onClose={() => setHeaderMenuVisible(false)} triggerRef={headerBtnRef} colors={colors}>
         <PremiumMenuOption label="Notifications" icon="bell-outline" color={colors.primary} onPress={() => { setHeaderMenuVisible(false); navigation.navigate('Notifications'); }} />
         <PremiumMenuOption label="Filter Options" icon="filter-variant" color={colors.primary} onPress={() => { setHeaderMenuVisible(false); navigation.navigate('Filter'); }} />
         <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 8, opacity: 0.5 }} />
         <PremiumMenuOption label="Settings" icon="cog-outline" color={colors.textSec} onPress={() => { setHeaderMenuVisible(false); navigation.navigate('Settings'); }} />
       </PopupMenu>
 
-      <PopupMenu visible={showSortModal} onClose={() => setShowSortModal(false)} position={sortMenuPos} colors={colors}>
+      {/* ✨ THE SORT MENU POPUP */}
+      <PopupMenu visible={showSortModal} onClose={() => setShowSortModal(false)} triggerRef={sortBtnRef} colors={colors}>
         <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.textSec, marginLeft: 12, marginBottom: 5, textTransform: 'uppercase' }}>Sort By</Text>
         <SortOption label="Recent First" type="RECENT" icon="sort-calendar-descending" />
         <SortOption label="Oldest First" type="OLD" icon="calendar-arrow-right" />
@@ -454,6 +537,7 @@ export default function HomeScreen({ navigation }) {
         <SortOption label="Highest Amount" type="HIGH" icon="sort-numeric-descending" />
         <SortOption label="Lowest Amount" type="LOW" icon="sort-numeric-ascending" />
       </PopupMenu>
+
 
       <BottomSheet visible={showBudgetModal} onClose={() => setShowBudgetModal(false)} title="Wallet Config" colors={colors}>
         <Text style={{ color: colors.textSec, marginBottom: 15, textAlign: 'center' }}>Set a base budget. Any Income added will increase this available limit.</Text>
@@ -477,7 +561,6 @@ export default function HomeScreen({ navigation }) {
         </View>
       </AlertModal>
 
-      {/* ✨ NEW ONBOARDING MODAL INJECTED HERE */}
       <OnboardingTutorial visible={isFirstLaunch} onComplete={completeTutorial} colors={colors} />
 
       <Animated.View style={[styles.undoContainer, { transform: [{ translateY: undoAnim }] }]}><Surface style={[styles.undoBar, { backgroundColor: '#333' }]} elevation={4}><View style={{ flexDirection: 'row', alignItems: 'center' }}><IconButton icon="trash-can-outline" size={20} iconColor="#FFF" /><Text style={{ color: '#FFF', fontWeight: 'bold' }}>Deleted.</Text></View><TouchableOpacity onPress={handleUndo} style={{ padding: 10 }}><Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 16 }}>UNDO</Text></TouchableOpacity></Surface></Animated.View>
@@ -540,24 +623,9 @@ const styles = StyleSheet.create({
   undoBar: { width: '100%', borderRadius: 16, padding: 5, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 20 },
 
   emptyText: { textAlign: 'center', marginTop: 50 },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: Platform.OS === 'ios' ? 40 : 30, 
-    borderRadius: 16,
-    elevation: 4, 
-    shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 5
-  },
-  fabLeft: {
-    position: 'absolute',
-    left: 20,
-    bottom: Platform.OS === 'ios' ? 40 : 30, 
-    borderRadius: 16,
-    elevation: 4,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 5
-  },
+  fab: { position: 'absolute', right: 20, bottom: Platform.OS === 'ios' ? 40 : 30, borderRadius: 16, elevation: 4, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 5 },
+  fabLeft: { position: 'absolute', left: 20, bottom: Platform.OS === 'ios' ? 40 : 30, borderRadius: 16, elevation: 4, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 5 },
 
-  // ✨ NEW ONBOARDING STYLES INJECTED HERE
   onboardingCard: { width: '85%', alignSelf: 'center', borderRadius: 28, padding: 30, alignItems: 'center', elevation: 15 },
   onboardingIconBg: { width: 100, height: 100, borderRadius: 50, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
   onboardingTitle: { fontSize: 22, fontWeight: '800', textAlign: 'center', marginBottom: 10 },
