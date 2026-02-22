@@ -73,28 +73,23 @@ export default function AddExpenseScreen({ navigation, route }) {
       if (type === 'income') setPaymentMode(existingExpense.paymentMode || 'One-time');
       else setPaymentMode(existingExpense.paymentMode || 'UPI');
 
-      // Scroll to correct page if editing an income
       setTimeout(() => {
           if(type === 'income') horizontalScrollRef.current?.scrollTo({ x: width, animated: false });
       }, 100);
     }
   }, [existingExpense]);
 
-  // --- 🌟 NATIVE SWIPE HANDLERS ---
   const handleTabTap = (value) => {
     setTransactionType(value);
     const index = value === 'expense' ? 0 : 1;
-    // Animate the scroll view to the selected tab
     horizontalScrollRef.current?.scrollTo({ x: index * width, animated: true });
     
-    // Auto switch payment modes
     if (value === 'income') setPaymentMode('One-time');
     else setPaymentMode(paymentModes[0] || 'UPI');
     setPaymentApp(null);
   };
 
   const handleScrollEnd = (e) => {
-    // Determine which page we landed on after swiping
     const index = Math.round(e.nativeEvent.contentOffset.x / width);
     const newType = index === 0 ? 'expense' : 'income';
     
@@ -131,7 +126,7 @@ export default function AddExpenseScreen({ navigation, route }) {
         if (isEditing) editExpense(payload); else addExpense(payload);
         setIsSaving(false);
         navigation.goBack();
-    }, 400); // Fast save
+    }, 400); 
   };
 
   const Label = ({ icon, text }) => (
@@ -171,36 +166,38 @@ export default function AddExpenseScreen({ navigation, route }) {
                 <Label icon="format-title" text="Title" />
                 <TextInput style={[styles.simpleInput, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.border }]} placeholder={isIncome ? "e.g. Salary, Gift" : "e.g. Starbucks"} placeholderTextColor={colors.textSec} value={name} onChangeText={setName} />
 
+                {/* ✨ FIX: Replaced ScrollView with Flex Wrap View */}
                 {!isIncome && (
                     <>
                         <Label icon="shape-outline" text="Category" />
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-                        {categories.map((cat) => (
-                            <TouchableOpacity key={cat} onPress={() => setCategory(cat)} style={[styles.chip, category === cat ? { backgroundColor: colors.primary } : { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border }]}>
-                            <Text style={[styles.chipText, category === cat ? { color: '#FFF' } : { color: colors.text }]}>{cat}</Text>
-                            </TouchableOpacity>
-                        ))}
-                        </ScrollView>
+                        <View style={styles.chipWrapContainer}>
+                            {categories.map((cat) => (
+                                <TouchableOpacity key={cat} onPress={() => setCategory(cat)} style={[styles.chip, category === cat ? { backgroundColor: colors.primary } : { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border }]}>
+                                    <Text style={[styles.chipText, category === cat ? { color: '#FFF' } : { color: colors.text }]}>{cat}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
                     </>
                 )}
 
+                {/* ✨ FIX: Replaced ScrollView with Flex Wrap View */}
                 <Label icon={isIncome ? "calendar-sync" : "credit-card-outline"} text={isIncome ? "Income Frequency" : "Payment Method"} />
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-                {activeModes.map((mode) => (
-                    <TouchableOpacity key={mode} onPress={() => { setPaymentMode(mode); setPaymentApp(null); }} style={[styles.chip, paymentMode === mode ? { backgroundColor: colors.primary } : { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border }]}>
-                    <Text style={[styles.chipText, paymentMode === mode ? { color: '#FFF' } : { color: colors.text }]}>{mode}</Text>
-                    </TouchableOpacity>
-                ))}
-                </ScrollView>
+                <View style={styles.chipWrapContainer}>
+                    {activeModes.map((mode) => (
+                        <TouchableOpacity key={mode} onPress={() => { setPaymentMode(mode); setPaymentApp(null); }} style={[styles.chip, paymentMode === mode ? { backgroundColor: colors.primary } : { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border }]}>
+                            <Text style={[styles.chipText, paymentMode === mode ? { color: '#FFF' } : { color: colors.text }]}>{mode}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
 
                 {!isIncome && paymentMode === 'UPI' && upiApps && upiApps.length > 0 && (
                 <View style={styles.subOptionContainer}>
-                    <View style={styles.chipContainer}>
-                    {upiApps.map((app) => (
-                        <TouchableOpacity key={app} onPress={() => setPaymentApp(app === paymentApp ? null : app)} style={[styles.miniChip, paymentApp === app ? { backgroundColor: colors.chip, borderColor: colors.primary } : { borderColor: colors.border }]}>
-                        <Text style={[styles.miniChipText, paymentApp === app ? { color: colors.text, fontWeight: 'bold' } : { color: colors.textSec }]}>{app}</Text>
-                        </TouchableOpacity>
-                    ))}
+                    <View style={styles.chipWrapContainer}>
+                        {upiApps.map((app) => (
+                            <TouchableOpacity key={app} onPress={() => setPaymentApp(app === paymentApp ? null : app)} style={[styles.miniChip, paymentApp === app ? { backgroundColor: colors.chip, borderColor: colors.primary } : { borderColor: colors.border }]}>
+                                <Text style={[styles.miniChipText, paymentApp === app ? { color: colors.text, fontWeight: 'bold' } : { color: colors.textSec }]}>{app}</Text>
+                            </TouchableOpacity>
+                        ))}
                     </View>
                 </View>
                 )}
@@ -259,25 +256,18 @@ export default function AddExpenseScreen({ navigation, route }) {
           />
         </View>
 
-        {/* 🌟 NATIVE HORIZONTAL SCROLL FOR SWIPING */}
+        {/* SWIPABLE TABS */}
         <ScrollView
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             ref={horizontalScrollRef}
-            onMomentumScrollEnd={handleScrollEnd} // Fires when swipe finishes
+            onMomentumScrollEnd={handleScrollEnd} 
             keyboardShouldPersistTaps="handled"
             style={{ flex: 1 }}
         >
-            {/* PAGE 1: EXPENSE */}
-            <View style={{ width }}>
-                {renderForm('expense')}
-            </View>
-
-            {/* PAGE 2: INCOME */}
-            <View style={{ width }}>
-                {renderForm('income')}
-            </View>
+            <View style={{ width }}>{renderForm('expense')}</View>
+            <View style={{ width }}>{renderForm('income')}</View>
         </ScrollView>
 
       </KeyboardAvoidingView>
@@ -299,12 +289,14 @@ const styles = StyleSheet.create({
   labelRow: { flexDirection: 'row', alignItems: 'center', marginTop: 15, marginBottom: 5 },
   label: { fontSize: 13, fontWeight: 'bold', textTransform: 'uppercase' },
   simpleInput: { borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, borderWidth: 1, marginBottom: 5 },
-  chipScroll: { flexDirection: 'row', marginBottom: 5 },
-  chipContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 24, marginBottom: 4, marginRight: 8 },
+  
+  // ✨ FIX: This wraps the chips beautifully so they don't scroll!
+  chipWrapContainer: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 5 },
+  
+  chip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 24, marginBottom: 8, marginRight: 8 },
   chipText: { fontSize: 13, fontWeight: '600' },
   subOptionContainer: { marginTop: 5, marginBottom: 5 },
-  miniChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1 },
+  miniChip: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, borderWidth: 1, marginRight: 8, marginBottom: 8 },
   miniChipText: { fontSize: 12 },
   dateRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderRadius: 12, borderWidth: 1 },
   dateText: { fontSize: 15, fontWeight: '500' },
