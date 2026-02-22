@@ -468,9 +468,10 @@ export default function HomeScreen({ navigation }) {
         </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>
 
-          <TouchableOpacity onPress={() => navigation.navigate('Stats')} style={[styles.chartButton, { backgroundColor: colors.surface }]}>
+          <TouchableOpacity onPress={() => navigation.navigate('FinancialInsights')} style={[styles.chartButton, { backgroundColor: colors.surface }]}>
             <IconButton icon="chart-pie" iconColor={colors.text} size={24} style={{ margin: 0 }} />
           </TouchableOpacity>
+
 
           <View ref={headerBtnRef} collapsable={false}>
             <TouchableOpacity onPress={handleHeaderMenuPress} style={[styles.chartButton, { backgroundColor: colors.surface }]}>

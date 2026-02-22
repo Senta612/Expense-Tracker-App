@@ -16,7 +16,9 @@ import FilterScreen from './src/screens/FilterScreen';
 import CustomAlert from './src/components/CustomAlert';
 import UpdateModal from './src/components/UpdateModal';
 import ChatScreen from './src/screens/ChatScreen';
-import NotificationScreen from './src/screens/NotificationScreen'; 
+import NotificationScreen from './src/screens/NotificationScreen';
+import FinancialInsightsScreen from './src/screens/FinancialInsightsScreen';
+
 
 // --- 🔔 FOREGROUND NOTIFICATION HANDLER ---
 // This tells the app to show a banner and play a sound even if you are actively using the app.
@@ -92,6 +94,13 @@ export default function App() {
                 component={StatsScreen}
                 options={{ headerShown: false }}
               />
+
+              <Stack.Screen
+                name="FinancialInsights"
+                component={FinancialInsightsScreen}
+                options={{ headerShown: false }}
+              />
+
 
               <Stack.Screen
                 name="Settings"
