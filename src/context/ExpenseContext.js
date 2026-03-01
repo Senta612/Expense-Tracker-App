@@ -1,13 +1,14 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications'; // ✨ IMPORTED NOTIFICATIONS
 
 const ExpenseContext = createContext();
 
 export const ExpenseProvider = ({ children }) => {
   // --- 1. THEME & COLORS ---
   const systemScheme = useColorScheme();
-  const [themeMode, setThemeMode] = useState('system'); // 'light', 'dark', 'system'
+  const [themeMode, setThemeMode] = useState('system');
 
   const isDark = themeMode === 'system' ? systemScheme === 'dark' : themeMode === 'dark';
 
@@ -44,11 +45,8 @@ export const ExpenseProvider = ({ children }) => {
   const [username, setUsername] = useState('User');
   const [currency, setCurrency] = useState('₹');
   
-  // BUDGET STATE
   const [budget, setBudget] = useState('0'); 
   const [budgetPeriod, setBudgetPeriod] = useState('Monthly'); 
-
-  // ✨ NEW: FIRST LAUNCH STATE
   const [isFirstLaunch, setIsFirstLaunch] = useState(false);
 
   // --- 3. UI STATE ---
@@ -68,7 +66,6 @@ export const ExpenseProvider = ({ children }) => {
 
   const loadData = async () => {
     try {
-      // ✨ Check if it is the first time opening the app
       const hasSeenTutorial = await AsyncStorage.getItem('hasSeenTutorial');
       if (!hasSeenTutorial) setIsFirstLaunch(true);
 
@@ -104,13 +101,11 @@ export const ExpenseProvider = ({ children }) => {
     }
   };
 
-  // ✨ Function to complete tutorial
   const completeTutorial = async () => {
     setIsFirstLaunch(false);
     await AsyncStorage.setItem('hasSeenTutorial', 'true');
   };
 
-  // --- 6. UPDATE LOGIC ---
   const CURRENT_APP_VERSION = "1.0.0"; 
   const UPDATE_API_URL = "https://raw.githubusercontent.com/YOUR_GITHUB_USER/YOUR_REPO/main/version.json";
 
@@ -125,6 +120,63 @@ export const ExpenseProvider = ({ children }) => {
     }
   };
 
+  // ✨ 6. NEW: BUDGET CHECKER & NOTIFICATION TRIGGER
+  const checkBudgetAndNotify = async (updatedExpenses) => {
+    const baseBudget = parseFloat(budget) || 0;
+    if (baseBudget <= 0) return; // Don't notify if they haven't set a budget
+
+    const now = new Date();
+    let cutoff = new Date();
+
+    if (budgetPeriod === 'Weekly') {
+        cutoff.setDate(now.getDate() - now.getDay()); 
+        cutoff.setHours(0, 0, 0, 0);
+    } else if (budgetPeriod === 'Monthly') {
+        cutoff = new Date(now.getFullYear(), now.getMonth(), 1); 
+    } else if (budgetPeriod === 'Yearly') {
+        cutoff = new Date(now.getFullYear(), 0, 1); 
+    } else {
+        cutoff = new Date(0); 
+    }
+
+    const currentPeriodItems = updatedExpenses.filter(e => new Date(e.date) >= cutoff);
+
+    const spent = currentPeriodItems
+        .filter(item => item.type === 'expense' || !item.type)
+        .reduce((sum, item) => sum + parseFloat(item.amount), 0);
+
+    const income = currentPeriodItems
+        .filter(item => item.type === 'income')
+        .reduce((sum, item) => sum + parseFloat(item.amount), 0);
+
+    const totalLimit = baseBudget + income;
+    const percentageUsed = (spent / totalLimit) * 100;
+
+    // Trigger Over Budget Alert
+    if (spent > totalLimit) {
+        await Notifications.scheduleNotificationAsync({
+            content: {
+                title: "⚠️ Budget Exceeded!",
+                body: `You have spent ${currency}${spent.toLocaleString('en-IN')}, which is over your ${budgetPeriod} limit of ${currency}${totalLimit.toLocaleString('en-IN')}.`,
+                sound: true,
+                priority: Notifications.AndroidNotificationPriority.HIGH,
+            },
+            trigger: null, // Fire immediately
+        });
+    } 
+    // Trigger 90% Warning Alert
+    else if (percentageUsed >= 90) {
+        await Notifications.scheduleNotificationAsync({
+            content: {
+                title: "🔔 Nearing Budget Limit",
+                body: `Careful! You have used ${percentageUsed.toFixed(0)}% of your ${budgetPeriod} limit.`,
+                sound: true,
+            },
+            trigger: null,
+        });
+    }
+  };
+
   // --- 7. ACTIONS (CRUD) ---
   const addExpense = async (newExpense) => {
     const expenseWithType = { 
@@ -134,6 +186,11 @@ export const ExpenseProvider = ({ children }) => {
     const updated = [expenseWithType, ...expenses];
     setExpenses(updated);
     await AsyncStorage.setItem('expenses', JSON.stringify(updated));
+    
+    // ✨ Call the notification check after saving!
+    if (expenseWithType.type === 'expense') {
+        checkBudgetAndNotify(updated);
+    }
   };
 
   const deleteExpense = async (id) => {
@@ -146,12 +203,16 @@ export const ExpenseProvider = ({ children }) => {
     const updated = expenses.map(e => e.id === updatedExpense.id ? updatedExpense : e);
     setExpenses(updated);
     await AsyncStorage.setItem('expenses', JSON.stringify(updated));
+    
+    // ✨ Call the notification check after editing!
+    if (updatedExpense.type === 'expense') {
+        checkBudgetAndNotify(updated);
+    }
   };
 
   const clearAllData = async () => {
     setExpenses([]);
     await AsyncStorage.removeItem('expenses');
-    // Reset tutorial on data clear so they see it again if they reset the app
     setIsFirstLaunch(true); 
     await AsyncStorage.removeItem('hasSeenTutorial');
   };
@@ -177,11 +238,10 @@ export const ExpenseProvider = ({ children }) => {
   const addUpiApp = async (a) => { if (!upiApps.includes(a)) { const u = [...upiApps, a]; setUpiApps(u); await AsyncStorage.setItem('upiApps', JSON.stringify(u)); } };
   const removeUpiApp = async (a) => { const u = upiApps.filter(x => x !== a); setUpiApps(u); await AsyncStorage.setItem('upiApps', JSON.stringify(u)); };
 
-  // --- 10. ALERT UTILS ---
   const showAlert = (title, msg, onConfirm = null) => setAlertConfig({ visible: true, title, msg, onConfirm });
   const closeAlert = () => setAlertConfig({ ...alertConfig, visible: false });
 
-  // --- 11. HELPERS & MATH ---
+  // --- 10. HELPERS & MATH ---
   const getFilteredExpenses = (timeRange) => {
     if (!timeRange || timeRange === 'All') return expenses;
     const now = new Date();
@@ -237,11 +297,11 @@ export const ExpenseProvider = ({ children }) => {
       themeMode, isDark, colors,
       alertConfig, showAlert, closeAlert,
       updateAvailable, setUpdateAvailable,
-      isFirstLaunch, // ✨ Exported
+      isFirstLaunch, 
 
       updateUsername, updateCurrency, updateBudget, updateBudgetConfig, updateTheme,
       addExpense, deleteExpense, editExpense, clearAllData,
-      addCategory, removeCategory, addPaymentMode, removePaymentMode, addUpiApp, removeUpiApp, completeTutorial, // ✨ Exported
+      addCategory, removeCategory, addPaymentMode, removePaymentMode, addUpiApp, removeUpiApp, completeTutorial, 
 
       getFilteredExpenses, getTotalSpent, getBalanceData
     }}>
