@@ -17,15 +17,9 @@ const KEYWORD_MAP = {
 };
 const SUCCESS_MSGS = ["Got it! Saved", "Done! Added", "Noted! Tracked", "Easy peasy! Added", "Roger that! Saved"];
 
-// Premium 10-color palette for top 10 categories (by rank)
-const COLOR_PALETTE = [
-  '#6B52FF', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA726', 
-  '#96CEB4', '#DDA0DD', '#42A5F5', '#FF7043', '#26A69A'
-];
-
+const COLOR_PALETTE = ['#6B52FF', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA726', '#96CEB4', '#DDA0DD', '#42A5F5', '#FF7043', '#26A69A'];
 const FALLBACK_COLOR = '#B0BEC5';
 
-// --- 1. PREMIUM LEGEND ANIMATION COMPONENT ---
 const LegendItem = ({ d, index, colors, currency }) => {
   const slideAnim = useRef(new Animated.Value(30)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -41,9 +35,7 @@ const LegendItem = ({ d, index, colors, currency }) => {
     <Animated.View style={[styles.legendRow, { borderBottomColor: colors.border, opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <View style={[styles.legendDot, { backgroundColor: d.color }]} />
-        {/* ✨ Ensured text strictly uses the dynamic theme colors */}
-        <Text style={{ fontSize: 15, color: '#FFFFFF', fontWeight: '600' }}>{d.name}</Text>
-
+        <Text style={{ fontSize: 15, color: colors.text, fontWeight: '600' }}>{d.name}</Text>
       </View>
       <View style={{ alignItems: 'flex-end' }}>
         <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>-{currency}{d.population.toLocaleString('en-IN')}</Text>
@@ -53,7 +45,6 @@ const LegendItem = ({ d, index, colors, currency }) => {
   );
 };
 
-// --- 2. PREMIUM DONUT CHART BUBBLE COMPONENT ---
 const AnimatedChartBubble = ({ item, colors, currency }) => {
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -68,49 +59,28 @@ const AnimatedChartBubble = ({ item, colors, currency }) => {
   const chartSize = Math.min(screenWidth * 0.55, 180);
   const donutHoleSize = chartSize * 0.45;
 
-  // ✨ We dynamically map the data AT RENDER TIME so it immediately switches colors if user toggles Dark Mode
-  const dynamicChartData = item.data.map(d => ({
-    ...d,
-    legendFontColor: colors.text,
-    legendFontSize: 12
-  }));
+  const dynamicChartData = item.data.map(d => ({ ...d, legendFontColor: colors.text, legendFontSize: 12 }));
 
   return (
     <Animated.View style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }], width: '100%' }}>
-      <Text style={[styles.chartTitle, { color: '#FFFFFF' }]}>Spending Breakdown</Text>
-
-
-
-      {/* DONUT CONTAINER */}
+      <Text style={[styles.chartTitle, { color: colors.text }]}>Spending Breakdown</Text>
       <View style={[styles.donutContainer, { width: chartSize, height: chartSize, aspectRatio: 1 }]}>
         <PieChart 
           data={dynamicChartData} 
-          width={chartSize + 60} // Added width buffer so it doesn't clip
+          width={chartSize + 60} 
           height={chartSize} 
           hasLegend={false}
-          // ✨ FIX: Dynamic text colors instead of hardcoded black
-          chartConfig={{ 
-            color: (opacity = 1) => colors.text,
-            labelColor: (opacity = 1) => colors.text 
-          }} 
+          chartConfig={{ color: (opacity = 1) => colors.text, labelColor: (opacity = 1) => colors.text }} 
           accessor={"population"} 
           backgroundColor={"transparent"} 
-          paddingLeft={"30"} // Centers the pie perfectly
-          // ✨ FIX: `absolute` has been removed here to hide the black overlapping numbers
+          paddingLeft={"30"} 
         />
-        
-        {/* DONUT HOLE - Uses strictly colors.surface and colors.text */}
         <View style={[styles.donutHole, { backgroundColor: colors.surface, width: donutHoleSize, height: donutHoleSize, borderRadius: donutHoleSize / 2 }]}>
-          <Text style={{ fontSize: 8, color: '#FFFFFF', fontWeight: '700', letterSpacing: 1 }}>TOTAL</Text>
-          <Text style={{ fontSize: 14, fontWeight: '900', color: '#FFFFFF', marginTop: 2 }}>{currency}{item.totalSum.toLocaleString('en-IN')}</Text>
+          <Text style={{ fontSize: 8, color: colors.textSec, fontWeight: '700', letterSpacing: 1 }}>TOTAL</Text>
+          <Text style={{ fontSize: 14, fontWeight: '900', color: colors.text, marginTop: 2 }}>{currency}{item.totalSum.toLocaleString('en-IN')}</Text>
         </View>
-
-
       </View>
-
       <Text style={[styles.chartHint, { color: colors.textSec }]}>Tap a category below</Text>
-
-      {/* CASCADING LEGEND LIST */}
       <View style={{ width: '100%' }}>
         {item.data.map((d, i) => (
           <LegendItem key={d.name} d={d} index={i} colors={colors} currency={currency} />
@@ -122,7 +92,7 @@ const AnimatedChartBubble = ({ item, colors, currency }) => {
 
 
 export default function ChatScreen({ navigation }) {
-  const { colors, addExpense, deleteExpense, categories, paymentModes, upiApps, currency, getFilteredExpenses, expenses } = useExpenses();
+  const { colors, addExpense, editExpense, deleteExpense, categories, paymentModes, upiApps, currency, getFilteredExpenses, expenses } = useExpenses();
   
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -131,78 +101,187 @@ export default function ChatScreen({ navigation }) {
   const inputRef = useRef();
 
   const [messages, setMessages] = useState([
-    { id: '1', type: 'text', text: "Hi! I'm FinBot. Tell me 'Lunch 250' or 'Uber 100'.", sender: 'bot', timestamp: new Date() }
+    { id: '1', type: 'text', text: "Hi! I'm FinBot 🤖. Try saying:\n\n• *Paid 200 for Starbucks via GPay note it was great*\n• *Got 5000 salary last monday*\n• *Change last amount to 250*", sender: 'bot', timestamp: new Date() }
   ]);
   
   const suggestions = [
     { label: "Today's Summary", cmd: "Show today's summary" },
-    { label: "Yesterday Lunch 150", cmd: "Yesterday Lunch 150" },
-    { label: "Petrol 500", cmd: "Petrol 500" },
+    { label: "Bought Shoes 2000", cmd: "Bought Shoes 2000 via Card" },
+    { label: "Got 5000 Salary", cmd: "Got 5000 salary" },
     { label: "Show Chart", cmd: "Show chart" },
   ];
 
+  // ✨ --- FINBOT 2.0 AI ENGINE --- ✨
   const processCommand = (text) => {
     const lower = text.toLowerCase();
+    
+    // 1. UNDO COMMAND
     if (lower === 'undo' && lastAddedId) { 
       deleteExpense(lastAddedId); 
       setLastAddedId(null); 
-      return { type: 'text', text: "Done! I removed that entry." }; 
+      return { type: 'text', text: "Done! I removed that entry. 🗑️" }; 
     }
-    if (lower.match(/\d+/) && (lower.includes('add') || lower.includes('spent') || isCategoryKeyword(lower) || lower.includes('yesterday'))) {
+
+    // 2. EDIT/UPDATE COMMAND (Feature 5)
+    if (lower.includes('change last amount') || lower.includes('update last amount')) {
+      return handleUpdateCommand(text);
+    }
+
+    // 3. ADD INCOME OR EXPENSE COMMAND
+    if (lower.match(/\d+/) && (lower.includes('add') || lower.includes('spent') || lower.includes('paid') || lower.includes('got') || lower.includes('salary') || isCategoryKeyword(lower) || lower.includes('yesterday') || lower.includes('for '))) {
       return handleAddCommand(text, lower);
     }
+
+    // 4. REPORTS
     if (lower.includes('summary') || lower.includes('total')) return handleSummaryCommand(lower);
     if (lower.includes('chart') || lower.includes('graph')) return handleChartCommand();
     if (lower.includes('biggest') || lower.includes('highest')) return handleAnalysisCommand();
     
-    return { type: 'text', text: "Try 'Lunch 150' or 'Show Chart'." };
+    return { type: 'text', text: "Hmm, I didn't quite catch that. Try an amount and a name (e.g. 'Coffee 150')." };
   };
 
   const isCategoryKeyword = (text) => { 
-    for (const cat in KEYWORD_MAP) { 
-      if (KEYWORD_MAP[cat].some(k => text.includes(k))) return true; 
-    } 
+    for (const cat in KEYWORD_MAP) { if (KEYWORD_MAP[cat].some(k => text.includes(k))) return true; } 
     return false; 
   };
 
+  // ✨ HELPER: SMART TIME TRAVEL (Feature 3)
+  const parseDateString = (lower) => {
+      let date = new Date();
+      if (lower.includes('day before yesterday')) {
+          date.setDate(date.getDate() - 2);
+      } else if (lower.includes('yesterday')) {
+          date.setDate(date.getDate() - 1);
+      } else {
+          const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+          for (let i = 0; i < days.length; i++) {
+              if (lower.includes(`last ${days[i]}`)) {
+                  let today = date.getDay();
+                  let diff = today - i;
+                  if (diff <= 0) diff += 7; 
+                  date.setDate(date.getDate() - diff);
+                  break;
+              }
+          }
+      }
+      return date;
+  }
+
+  // ✨ HELPER: EDIT LAST AMOUNT (Feature 5)
+  const handleUpdateCommand = (text) => {
+      if (!lastAddedId) return { type: 'text', text: "I don't remember your last entry! 😅" };
+      const amountMatch = text.match(/(\d+(\.\d+)?)/);
+      if (!amountMatch) return { type: 'text', text: "Please specify the new amount (e.g., 'change last amount to 500')." };
+
+      const newAmount = parseFloat(amountMatch[0]);
+      const lastExp = expenses.find(e => e.id === lastAddedId);
+      
+      if (!lastExp) return { type: 'text', text: "Hmm, I couldn't find the last entry in the database." };
+
+      editExpense({ ...lastExp, amount: newAmount });
+      return { type: 'text', text: `✏️ Done! Updated **${lastExp.name}** to ${currency}${newAmount}.` };
+  };
+
+  // ✨ CORE LOGIC: THE BRAIN
   const handleAddCommand = (originalText, lower) => {
     const amountMatch = originalText.match(/(\d+(\.\d+)?)/);
     if (!amountMatch) return { type: 'text', text: "I need an amount! (e.g. '100')" };
     
     const amount = parseFloat(amountMatch[0]);
-    let date = new Date();
-    if (lower.includes('yesterday')) date.setDate(date.getDate() - 1);
+    let date = parseDateString(lower); // Applies Feature 3
     
-    let category = 'Other';
-    let detectedKeyword = '';
-    categories.forEach(cat => { if (lower.includes(cat.toLowerCase())) category = cat; });
-    
-    if (category === 'Other') { 
-      for (const [catName, keywords] of Object.entries(KEYWORD_MAP)) { 
-        const match = keywords.find(k => lower.includes(k)); 
-        if (match) { category = catName; detectedKeyword = match; break; } 
-      } 
+    // Feature 1: Extract Note/Description
+    let description = "";
+    let workingText = originalText;
+    const noteMatch = originalText.match(/\b(?:note|desc|description)s?:?\s*(.*)/i);
+    if (noteMatch) {
+        description = noteMatch[1].trim();
+        workingText = originalText.replace(noteMatch[0], '').trim(); 
+        lower = workingText.toLowerCase(); 
     }
-    
-    let paymentMode = 'Cash'; 
-    let paymentApp = null;
-    upiApps.forEach(app => { if (lower.includes(app.toLowerCase())) { paymentMode = 'UPI'; paymentApp = app; }});
-    if (!paymentApp) { paymentModes.forEach(mode => { if (lower.includes(mode.toLowerCase())) paymentMode = mode; }); }
 
-    let cleanDesc = originalText.replace(amountMatch[0], '').replace(/yesterday|add|spent|paid|bought|via|on|for/gi, '').replace(new RegExp(category, 'gi'), '').replace(new RegExp(paymentMode, 'gi'), '').replace(new RegExp(paymentApp || '', 'gi'), '').trim();
-    const finalTitle = cleanDesc.length > 1 ? cleanDesc : (detectedKeyword ? detectedKeyword.charAt(0).toUpperCase() + detectedKeyword.slice(1) : category);
+    // Feature 2: Income vs Expense Detection
+    const isIncome = /\b(got|received|salary|earned|refund|credited|income)\b/i.test(lower);
+    const transactionType = isIncome ? 'income' : 'expense';
+
+    // Feature 4: "For" and "Via" Natural Parsing
+    let finalTitle = "";
+    let paymentMode = isIncome ? 'One-time' : 'Cash';
+    let paymentApp = null;
+
+    // Detect Title via "for ____"
+    const forMatch = workingText.match(/\bfor\s+([a-zA-Z0-9_]+)\b/i);
+    if (forMatch) finalTitle = forMatch[1].charAt(0).toUpperCase() + forMatch[1].slice(1);
+
+    // Detect Payment via "via ____"
+    const viaMatch = workingText.match(/\bvia\s+([a-zA-Z0-9_]+)\b/i);
+    let viaWord = "";
+    if (viaMatch) {
+        viaWord = viaMatch[1].toLowerCase();
+        const matchedApp = upiApps.find(a => a.toLowerCase() === viaWord);
+        if (matchedApp) {
+            paymentMode = 'UPI';
+            paymentApp = matchedApp;
+        } else {
+            const matchedMode = paymentModes.find(m => m.toLowerCase() === viaWord);
+            if (matchedMode) paymentMode = matchedMode;
+            else paymentMode = viaMatch[1].charAt(0).toUpperCase() + viaMatch[1].slice(1); // Fallback custom mode
+        }
+    } else {
+        // Fallback detection without the word "via"
+        upiApps.forEach(app => { if (lower.includes(app.toLowerCase())) { paymentMode = 'UPI'; paymentApp = app; }});
+        if (!paymentApp) { paymentModes.forEach(mode => { if (lower.includes(mode.toLowerCase())) paymentMode = mode; }); }
+    }
+
+    // Detect Category
+    let category = isIncome ? 'Income' : 'Other';
+    let detectedKeyword = '';
+    if (!isIncome) {
+        categories.forEach(cat => { if (lower.includes(cat.toLowerCase())) category = cat; });
+        if (category === 'Other') { 
+            for (const [catName, keywords] of Object.entries(KEYWORD_MAP)) { 
+                const match = keywords.find(k => lower.includes(k)); 
+                if (match) { category = catName; detectedKeyword = match; break; } 
+            } 
+        }
+    }
+
+    // Cleanup Title if "For" wasn't used
+    if (!finalTitle) {
+        let cleanDesc = workingText.replace(amountMatch[0], '')
+            .replace(/\b(got|received|salary|earned|refund|yesterday|add|spent|paid|bought|via|on|for)\b/gi, '')
+            .replace(new RegExp(`\\b${category}\\b`, 'gi'), '')
+            .replace(new RegExp(`\\b${paymentMode}\\b`, 'gi'), '')
+            .replace(new RegExp(`\\b${paymentApp || ''}\\b`, 'gi'), '')
+            .replace(new RegExp(`\\b${viaWord}\\b`, 'gi'), '')
+            .replace(/(day before yesterday|last monday|last tuesday|last wednesday|last thursday|last friday|last saturday|last sunday)/gi, '')
+            .replace(/[^a-zA-Z\s]/g, '').replace(/\s+/g, ' ').trim(); // Remove symbols and extra spaces
+
+        if (isIncome && cleanDesc.length < 2) {
+            const incMatch = lower.match(/(salary|bonus|gift|refund)/i);
+            finalTitle = incMatch ? incMatch[0].charAt(0).toUpperCase() + incMatch[0].slice(1) : "Income";
+        } else if (cleanDesc.length > 1) {
+            finalTitle = cleanDesc.charAt(0).toUpperCase() + cleanDesc.slice(1);
+        } else {
+            finalTitle = detectedKeyword ? detectedKeyword.charAt(0).toUpperCase() + detectedKeyword.slice(1) : category;
+        }
+    }
+
+    // Finalize
+    if(!description) description = `Bot Entry: ${originalText}`;
     
     const newId = Date.now().toString();
-    addExpense({ id: newId, type: 'expense', name: finalTitle, amount, category, description: `Bot Entry: ${originalText}`, date: date.toISOString(), paymentMode, paymentApp});
+    addExpense({ id: newId, type: transactionType, name: finalTitle, amount, category, description, date: date.toISOString(), paymentMode, paymentApp });
     setLastAddedId(newId);
     
-    return { type: 'text', text: `Done! Added ${currency}${amount} for ${category}.`, showUndo: true };
+    const typeEmoji = isIncome ? '💸' : '✅';
+    return { type: 'text', text: `${typeEmoji} Saved! **${currency}${amount}** for **${finalTitle}**.\n*(Cat: ${category} | Mode: ${paymentApp || paymentMode})*`, showUndo: true };
   };
 
   const handleSummaryCommand = (lower) => {
     let target = lower.includes('today') ? 'Today' : lower.includes('week') ? 'Week' : 'All';
     const total = getFilteredExpenses(target).reduce((sum, item) => sum + item.amount, 0);
-    return { type: 'text', text: `${target} Total: ${currency}${total.toLocaleString('en-IN')}` };
+    return { type: 'text', text: `📊 ${target} Total: ${currency}${total.toLocaleString('en-IN')}` };
   };
 
   const handleChartCommand = () => {
@@ -217,15 +296,9 @@ export default function ChatScreen({ navigation }) {
     });
     
     const sortedCats = Object.keys(catTotals).sort((a, b) => catTotals[b] - catTotals[a]);
-    
     const chartData = sortedCats.map((cat, index) => {
       const val = catTotals[cat];
-      return { 
-        name: cat, 
-        population: val, 
-        color: index < COLOR_PALETTE.length ? COLOR_PALETTE[index] : FALLBACK_COLOR, 
-        percentage: ((val / totalSum) * 100).toFixed(0) + '%'
-      };
+      return { name: cat, population: val, color: index < COLOR_PALETTE.length ? COLOR_PALETTE[index] : FALLBACK_COLOR, percentage: ((val / totalSum) * 100).toFixed(0) + '%' };
     });
     
     return { type: 'chart', text: "Spending Breakdown", data: chartData, totalSum };
@@ -235,7 +308,7 @@ export default function ChatScreen({ navigation }) {
     const expenseList = expenses.filter(e => e.type === 'expense' || !e.type);
     if (expenseList.length === 0) return { type: 'text', text: "No data to analyze." };
     const max = expenseList.reduce((p, c) => (p.amount > c.amount) ? p : c);
-    return { type: 'text', text: `Biggest Expense: ${max.name} (${currency}${max.amount})` };
+    return { type: 'text', text: `🏆 Biggest Expense: **${max.name}** (${currency}${max.amount})` };
   };
 
   const sendMessage = (customText = null) => {
@@ -273,13 +346,8 @@ export default function ChatScreen({ navigation }) {
 
     return (
       <View style={[styles.messageWrapper, isBot ? styles.messageWrapperBot : styles.messageWrapperUser, isChart && { maxWidth: '95%' }]}>
-        
-        {isBot && !isChart && (
-          <Avatar.Icon size={32} icon="robot" color="#FFF" style={[styles.botAvatar, { backgroundColor: colors.primary }]} />
-        )}
-        {isBot && isChart && (
-          <Avatar.Icon size={32} icon="chart-pie" color="#FFF" style={[styles.botAvatar, { backgroundColor: colors.primary }]} />
-        )}
+        {isBot && !isChart && ( <Avatar.Icon size={32} icon="robot" color="#FFF" style={[styles.botAvatar, { backgroundColor: colors.primary }]} /> )}
+        {isBot && isChart && ( <Avatar.Icon size={32} icon="chart-pie" color="#FFF" style={[styles.botAvatar, { backgroundColor: colors.primary }]} /> )}
 
         <Surface style={[
           styles.bubble, 
@@ -288,13 +356,8 @@ export default function ChatScreen({ navigation }) {
           isChart && styles.chartBubble
         ]} elevation={isBot ? 1 : 0}>
           
-          {item.type === 'text' && (
-            <Text style={[styles.msgText, { color: isBot ? colors.text : '#FFF' }]}>{formatText(item.text)}</Text>
-          )}
-
-          {isChart && (
-            <AnimatedChartBubble item={item} colors={colors} currency={currency} />
-          )}
+          {item.type === 'text' && ( <Text style={[styles.msgText, { color: isBot ? colors.text : '#FFF' }]}>{formatText(item.text)}</Text> )}
+          {isChart && ( <AnimatedChartBubble item={item} colors={colors} currency={currency} /> )}
 
           {isBot && item.showUndo && ( 
             <TouchableOpacity onPress={() => sendMessage('Undo')} style={styles.undoBtn}>
@@ -302,11 +365,7 @@ export default function ChatScreen({ navigation }) {
             </TouchableOpacity> 
           )}
 
-          {!isChart && (
-            <Text style={[styles.timestamp, { color: isBot ? colors.textSec : 'rgba(255,255,255,0.7)' }]}>
-              {item.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </Text>
-          )}
+          {!isChart && ( <Text style={[styles.timestamp, { color: isBot ? colors.textSec : 'rgba(255,255,255,0.7)' }]}> {item.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} </Text> )}
         </Surface>
       </View>
     );
@@ -314,13 +373,12 @@ export default function ChatScreen({ navigation }) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
           <IconButton icon="arrow-left" size={24} iconColor={colors.text} style={{margin: 0}} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>FinBot</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>FinBot AI</Text>
           <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 2}}>
             <View style={[styles.onlineDot, { backgroundColor: '#00C853' }]} />
             <Text style={{color: colors.success, fontSize: 11, fontWeight: '600', marginLeft: 4}}>Online</Text>
@@ -330,15 +388,7 @@ export default function ChatScreen({ navigation }) {
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.chatContainer}
-          showsVerticalScrollIndicator={false}
-          renderItem={renderBubble}
-        />
+        <FlatList ref={flatListRef} data={messages} keyExtractor={item => item.id} contentContainerStyle={styles.chatContainer} showsVerticalScrollIndicator={false} renderItem={renderBubble} />
 
         {loading && (
           <View style={styles.typingIndicator}>
@@ -350,11 +400,7 @@ export default function ChatScreen({ navigation }) {
         <View style={styles.suggestionsContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 15, alignItems: 'center' }}>
             {suggestions.map((chip, index) => (
-              <TouchableOpacity 
-                key={index} 
-                style={[styles.chip, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '30' }]} 
-                onPress={() => sendMessage(chip.cmd)}
-              >
+              <TouchableOpacity key={index} style={[styles.chip, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '30' }]} onPress={() => sendMessage(chip.cmd)}>
                 <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>{chip.label}</Text>
               </TouchableOpacity>
             ))}
@@ -362,23 +408,13 @@ export default function ChatScreen({ navigation }) {
         </View>
 
         <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-          <TextInput
-            ref={inputRef}
-            style={[styles.input, { color: colors.text, backgroundColor: colors.inputBg || colors.background, borderColor: colors.border }]}
-            placeholder="Type: 'Lunch 200'"
-            placeholderTextColor={colors.textSec}
-            value={input}
-            onChangeText={setInput}
-            onSubmitEditing={() => sendMessage()}
-            returnKeyType="send"
-          />
+          <TextInput ref={inputRef} style={[styles.input, { color: colors.text, backgroundColor: colors.inputBg || colors.background, borderColor: colors.border }]} placeholder="Try: 'Paid 150 for Coffee via Gpay note with Mike'" placeholderTextColor={colors.textSec} value={input} onChangeText={setInput} onSubmitEditing={() => sendMessage()} returnKeyType="send" />
           <TouchableOpacity onPress={() => sendMessage()} disabled={!input.trim()}>
             <View style={[styles.sendButton, { backgroundColor: input.trim() ? colors.primary : colors.border }]}>
               <IconButton icon="send" size={18} iconColor={input.trim() ? '#FFFFFF' : colors.textSec} style={{margin: 0}} />
             </View>
           </TouchableOpacity>
         </View>
-
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -391,33 +427,25 @@ const styles = StyleSheet.create({
   headerTitleContainer: { alignItems: 'center' },
   headerTitle: { fontSize: 18, fontWeight: '800' },
   onlineDot: { width: 6, height: 6, borderRadius: 3 },
-  
   chatContainer: { padding: 15, paddingBottom: 20 },
-  
   messageWrapper: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 15, maxWidth: '85%' },
   messageWrapperUser: { alignSelf: 'flex-end', justifyContent: 'flex-end' },
   messageWrapperBot: { alignSelf: 'flex-start' },
   botAvatar: { marginRight: 8, marginBottom: 5 },
-  
   bubble: { padding: 14, borderRadius: 20, maxWidth: '100%' },
   chartBubble: { padding: 20, borderRadius: 24, width: '100%' }, 
   msgText: { fontSize: 15, lineHeight: 22 },
   timestamp: { fontSize: 10, marginTop: 5, alignSelf: 'flex-end' },
-  
   undoBtn: { marginTop: 10, paddingVertical: 8, paddingHorizontal: 14, backgroundColor: 'rgba(0,0,0,0.05)', alignSelf: 'flex-start', borderRadius: 14 },
-
   chartTitle: { fontSize: 17, fontWeight: '700', marginBottom: 15, textAlign: 'center' },
   donutContainer: { alignItems: 'center', justifyContent: 'center', marginBottom: 15, alignSelf: 'center' },
   donutHole: { position: 'absolute', alignItems: 'center', justifyContent: 'center', shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 10 },
   chartHint: { textAlign: 'center', fontSize: 11, marginBottom: 15, fontStyle: 'italic' },
   legendRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1 },
   legendDot: { width: 12, height: 12, borderRadius: 6, marginRight: 12 },
-
   typingIndicator: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 10 },
-  
   suggestionsContainer: { height: 44, marginBottom: 4 },
   chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 8, borderWidth: 1 },
-
   inputContainer: { flexDirection: 'row', alignItems: 'center', padding: 10, paddingBottom: Platform.OS === 'ios' ? 25 : 15, borderTopWidth: 1 },
   input: { flex: 1, borderRadius: 24, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 10, fontSize: 15, borderWidth: 1, maxHeight: 100 },
   sendButton: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginLeft: 10 },
