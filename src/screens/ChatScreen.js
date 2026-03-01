@@ -1,3 +1,4 @@
+// src/screens/ChatScreen.js
 import React, { useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, FlatList, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Dimensions, ScrollView, ActivityIndicator, Animated } from 'react-native';
 import { Text, Surface, IconButton, Avatar } from 'react-native-paper';
@@ -5,7 +6,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useExpenses } from '../context/ExpenseContext';
 import { PieChart } from 'react-native-chart-kit';
 
-const screenWidth = Dimensions.get('window').width;
+// ✨ IMPORT THE NEW COMPONENT
+import FinBotHelpModal from '../components/FinBotHelpModal'; 
+
+const { width: screenWidth } = Dimensions.get('window');
 
 // --- KEYWORDS MAP ---
 const KEYWORD_MAP = {
@@ -15,11 +19,11 @@ const KEYWORD_MAP = {
   'Shopping': ['amazon', 'flipkart', 'myntra', 'clothes', 'shoes', 'jeans', 'shirt', 'watch', 'bag', 'grocery', 'shampoo', 'soap'],
   'Health': ['medicine', 'doctor', 'clinic', 'gym', 'hospital', 'checkup', 'test']
 };
-const SUCCESS_MSGS = ["Got it! Saved", "Done! Added", "Noted! Tracked", "Easy peasy! Added", "Roger that! Saved"];
 
 const COLOR_PALETTE = ['#6B52FF', '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA726', '#96CEB4', '#DDA0DD', '#42A5F5', '#FF7043', '#26A69A'];
 const FALLBACK_COLOR = '#B0BEC5';
 
+// --- CHART COMPONENTS ---
 const LegendItem = ({ d, index, colors, currency }) => {
   const slideAnim = useRef(new Animated.Value(30)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -58,7 +62,6 @@ const AnimatedChartBubble = ({ item, colors, currency }) => {
 
   const chartSize = Math.min(screenWidth * 0.55, 180);
   const donutHoleSize = chartSize * 0.45;
-
   const dynamicChartData = item.data.map(d => ({ ...d, legendFontColor: colors.text, legendFontSize: 12 }));
 
   return (
@@ -97,11 +100,13 @@ export default function ChatScreen({ navigation }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [lastAddedId, setLastAddedId] = useState(null);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  
   const flatListRef = useRef();
   const inputRef = useRef();
 
   const [messages, setMessages] = useState([
-    { id: '1', type: 'text', text: "Hi! I'm FinBot 🤖. Try saying:\n\n• *Paid 200 for Starbucks via GPay note it was great*\n• *Got 5000 salary last monday*\n• *Change last amount to 250*", sender: 'bot', timestamp: new Date() }
+    { id: '1', type: 'text', text: "Hi! I'm FinBot 🤖. I make logging money as easy as sending a text.\n\nTap the **?** icon at the top to see what I can do!", sender: 'bot', timestamp: new Date() }
   ]);
   
   const suggestions = [
@@ -111,33 +116,25 @@ export default function ChatScreen({ navigation }) {
     { label: "Show Chart", cmd: "Show chart" },
   ];
 
-  // ✨ --- FINBOT 2.0 AI ENGINE --- ✨
   const processCommand = (text) => {
     const lower = text.toLowerCase();
     
-    // 1. UNDO COMMAND
     if (lower === 'undo' && lastAddedId) { 
       deleteExpense(lastAddedId); 
       setLastAddedId(null); 
       return { type: 'text', text: "Done! I removed that entry. 🗑️" }; 
     }
-
-    // 2. EDIT/UPDATE COMMAND (Feature 5)
     if (lower.includes('change last amount') || lower.includes('update last amount')) {
       return handleUpdateCommand(text);
     }
-
-    // 3. ADD INCOME OR EXPENSE COMMAND
     if (lower.match(/\d+/) && (lower.includes('add') || lower.includes('spent') || lower.includes('paid') || lower.includes('got') || lower.includes('salary') || isCategoryKeyword(lower) || lower.includes('yesterday') || lower.includes('for '))) {
       return handleAddCommand(text, lower);
     }
-
-    // 4. REPORTS
     if (lower.includes('summary') || lower.includes('total')) return handleSummaryCommand(lower);
     if (lower.includes('chart') || lower.includes('graph')) return handleChartCommand();
     if (lower.includes('biggest') || lower.includes('highest')) return handleAnalysisCommand();
     
-    return { type: 'text', text: "Hmm, I didn't quite catch that. Try an amount and a name (e.g. 'Coffee 150')." };
+    return { type: 'text', text: "Hmm, I didn't quite catch that. Try tapping the **?** icon above for some magic words! ✨" };
   };
 
   const isCategoryKeyword = (text) => { 
@@ -145,7 +142,6 @@ export default function ChatScreen({ navigation }) {
     return false; 
   };
 
-  // ✨ HELPER: SMART TIME TRAVEL (Feature 3)
   const parseDateString = (lower) => {
       let date = new Date();
       if (lower.includes('day before yesterday')) {
@@ -167,30 +163,25 @@ export default function ChatScreen({ navigation }) {
       return date;
   }
 
-  // ✨ HELPER: EDIT LAST AMOUNT (Feature 5)
   const handleUpdateCommand = (text) => {
       if (!lastAddedId) return { type: 'text', text: "I don't remember your last entry! 😅" };
       const amountMatch = text.match(/(\d+(\.\d+)?)/);
       if (!amountMatch) return { type: 'text', text: "Please specify the new amount (e.g., 'change last amount to 500')." };
-
       const newAmount = parseFloat(amountMatch[0]);
       const lastExp = expenses.find(e => e.id === lastAddedId);
-      
       if (!lastExp) return { type: 'text', text: "Hmm, I couldn't find the last entry in the database." };
 
       editExpense({ ...lastExp, amount: newAmount });
       return { type: 'text', text: `✏️ Done! Updated **${lastExp.name}** to ${currency}${newAmount}.` };
   };
 
-  // ✨ CORE LOGIC: THE BRAIN
   const handleAddCommand = (originalText, lower) => {
     const amountMatch = originalText.match(/(\d+(\.\d+)?)/);
     if (!amountMatch) return { type: 'text', text: "I need an amount! (e.g. '100')" };
     
     const amount = parseFloat(amountMatch[0]);
-    let date = parseDateString(lower); // Applies Feature 3
+    let date = parseDateString(lower); 
     
-    // Feature 1: Extract Note/Description
     let description = "";
     let workingText = originalText;
     const noteMatch = originalText.match(/\b(?:note|desc|description)s?:?\s*(.*)/i);
@@ -200,20 +191,16 @@ export default function ChatScreen({ navigation }) {
         lower = workingText.toLowerCase(); 
     }
 
-    // Feature 2: Income vs Expense Detection
     const isIncome = /\b(got|received|salary|earned|refund|credited|income)\b/i.test(lower);
     const transactionType = isIncome ? 'income' : 'expense';
 
-    // Feature 4: "For" and "Via" Natural Parsing
     let finalTitle = "";
     let paymentMode = isIncome ? 'One-time' : 'Cash';
     let paymentApp = null;
 
-    // Detect Title via "for ____"
     const forMatch = workingText.match(/\bfor\s+([a-zA-Z0-9_]+)\b/i);
     if (forMatch) finalTitle = forMatch[1].charAt(0).toUpperCase() + forMatch[1].slice(1);
 
-    // Detect Payment via "via ____"
     const viaMatch = workingText.match(/\bvia\s+([a-zA-Z0-9_]+)\b/i);
     let viaWord = "";
     if (viaMatch) {
@@ -225,15 +212,13 @@ export default function ChatScreen({ navigation }) {
         } else {
             const matchedMode = paymentModes.find(m => m.toLowerCase() === viaWord);
             if (matchedMode) paymentMode = matchedMode;
-            else paymentMode = viaMatch[1].charAt(0).toUpperCase() + viaMatch[1].slice(1); // Fallback custom mode
+            else paymentMode = viaMatch[1].charAt(0).toUpperCase() + viaMatch[1].slice(1); 
         }
     } else {
-        // Fallback detection without the word "via"
         upiApps.forEach(app => { if (lower.includes(app.toLowerCase())) { paymentMode = 'UPI'; paymentApp = app; }});
         if (!paymentApp) { paymentModes.forEach(mode => { if (lower.includes(mode.toLowerCase())) paymentMode = mode; }); }
     }
 
-    // Detect Category
     let category = isIncome ? 'Income' : 'Other';
     let detectedKeyword = '';
     if (!isIncome) {
@@ -246,7 +231,6 @@ export default function ChatScreen({ navigation }) {
         }
     }
 
-    // Cleanup Title if "For" wasn't used
     if (!finalTitle) {
         let cleanDesc = workingText.replace(amountMatch[0], '')
             .replace(/\b(got|received|salary|earned|refund|yesterday|add|spent|paid|bought|via|on|for)\b/gi, '')
@@ -255,7 +239,7 @@ export default function ChatScreen({ navigation }) {
             .replace(new RegExp(`\\b${paymentApp || ''}\\b`, 'gi'), '')
             .replace(new RegExp(`\\b${viaWord}\\b`, 'gi'), '')
             .replace(/(day before yesterday|last monday|last tuesday|last wednesday|last thursday|last friday|last saturday|last sunday)/gi, '')
-            .replace(/[^a-zA-Z\s]/g, '').replace(/\s+/g, ' ').trim(); // Remove symbols and extra spaces
+            .replace(/[^a-zA-Z\s]/g, '').replace(/\s+/g, ' ').trim(); 
 
         if (isIncome && cleanDesc.length < 2) {
             const incMatch = lower.match(/(salary|bonus|gift|refund)/i);
@@ -267,7 +251,6 @@ export default function ChatScreen({ navigation }) {
         }
     }
 
-    // Finalize
     if(!description) description = `Bot Entry: ${originalText}`;
     
     const newId = Date.now().toString();
@@ -290,10 +273,7 @@ export default function ChatScreen({ navigation }) {
 
     const catTotals = {}; 
     let totalSum = 0;
-    expenseList.forEach(e => { 
-      catTotals[e.category] = (catTotals[e.category] || 0) + e.amount; 
-      totalSum += e.amount;
-    });
+    expenseList.forEach(e => { catTotals[e.category] = (catTotals[e.category] || 0) + e.amount; totalSum += e.amount; });
     
     const sortedCats = Object.keys(catTotals).sort((a, b) => catTotals[b] - catTotals[a]);
     const chartData = sortedCats.map((cat, index) => {
@@ -326,6 +306,14 @@ export default function ChatScreen({ navigation }) {
       setMessages(prev => [...prev, botMsg]);
       setLoading(false);
     }, 600);
+  };
+
+  const handleTryCommand = (cmdText) => {
+      setShowHelpModal(false);
+      setInput(cmdText);
+      setTimeout(() => {
+          inputRef.current?.focus();
+      }, 300);
   };
 
   useEffect(() => {
@@ -373,18 +361,29 @@ export default function ChatScreen({ navigation }) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+      
+      {/* ✨ RENDER THE EXTRACTED COMPONENT */}
+      <FinBotHelpModal visible={showHelpModal} onClose={() => setShowHelpModal(false)} onTryCommand={handleTryCommand} colors={colors} />
+
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-          <IconButton icon="arrow-left" size={24} iconColor={colors.text} style={{margin: 0}} />
-        </TouchableOpacity>
-        <View style={styles.headerTitleContainer}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>FinBot AI</Text>
-          <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 2}}>
-            <View style={[styles.onlineDot, { backgroundColor: '#00C853' }]} />
-            <Text style={{color: colors.success, fontSize: 11, fontWeight: '600', marginLeft: 4}}>Online</Text>
+        <View style={{flexDirection: 'row', alignItems: 'center'}}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
+            <IconButton icon="arrow-left" size={24} iconColor={colors.text} style={{margin: 0}} />
+          </TouchableOpacity>
+          <View style={styles.headerTitleContainer}>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>FinBot AI</Text>
+            <View style={{flexDirection: 'row', alignItems: 'center', marginTop: 2}}>
+              <View style={[styles.onlineDot, { backgroundColor: '#00C853' }]} />
+              <Text style={{color: colors.success, fontSize: 11, fontWeight: '600', marginLeft: 4}}>Online</Text>
+            </View>
           </View>
         </View>
-        <View style={{width: 40}} /> 
+        
+        <TouchableOpacity onPress={() => setShowHelpModal(true)}>
+            <Surface style={[styles.helpBtn, { backgroundColor: colors.surface }]} elevation={2}>
+                <IconButton icon="help" size={20} iconColor={colors.primary} style={{margin: 0}} />
+            </Surface>
+        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -408,7 +407,7 @@ export default function ChatScreen({ navigation }) {
         </View>
 
         <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-          <TextInput ref={inputRef} style={[styles.input, { color: colors.text, backgroundColor: colors.inputBg || colors.background, borderColor: colors.border }]} placeholder="Try: 'Paid 150 for Coffee via Gpay note with Mike'" placeholderTextColor={colors.textSec} value={input} onChangeText={setInput} onSubmitEditing={() => sendMessage()} returnKeyType="send" />
+          <TextInput ref={inputRef} style={[styles.input, { color: colors.text, backgroundColor: colors.inputBg || colors.background, borderColor: colors.border }]} placeholder="Type: 'Lunch 200'" placeholderTextColor={colors.textSec} value={input} onChangeText={setInput} onSubmitEditing={() => sendMessage()} returnKeyType="send" />
           <TouchableOpacity onPress={() => sendMessage()} disabled={!input.trim()}>
             <View style={[styles.sendButton, { backgroundColor: input.trim() ? colors.primary : colors.border }]}>
               <IconButton icon="send" size={18} iconColor={input.trim() ? '#FFFFFF' : colors.textSec} style={{margin: 0}} />
@@ -424,9 +423,11 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1 },
   iconBtn: { padding: 5 },
-  headerTitleContainer: { alignItems: 'center' },
+  headerTitleContainer: { alignItems: 'flex-start', marginLeft: 5 },
   headerTitle: { fontSize: 18, fontWeight: '800' },
   onlineDot: { width: 6, height: 6, borderRadius: 3 },
+  helpBtn: { borderRadius: 20, width: 36, height: 36, justifyContent: 'center', alignItems: 'center', marginRight: 5 },
+  
   chatContainer: { padding: 15, paddingBottom: 20 },
   messageWrapper: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 15, maxWidth: '85%' },
   messageWrapperUser: { alignSelf: 'flex-end', justifyContent: 'flex-end' },
@@ -437,16 +438,18 @@ const styles = StyleSheet.create({
   msgText: { fontSize: 15, lineHeight: 22 },
   timestamp: { fontSize: 10, marginTop: 5, alignSelf: 'flex-end' },
   undoBtn: { marginTop: 10, paddingVertical: 8, paddingHorizontal: 14, backgroundColor: 'rgba(0,0,0,0.05)', alignSelf: 'flex-start', borderRadius: 14 },
+  
   chartTitle: { fontSize: 17, fontWeight: '700', marginBottom: 15, textAlign: 'center' },
   donutContainer: { alignItems: 'center', justifyContent: 'center', marginBottom: 15, alignSelf: 'center' },
   donutHole: { position: 'absolute', alignItems: 'center', justifyContent: 'center', shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 10 },
   chartHint: { textAlign: 'center', fontSize: 11, marginBottom: 15, fontStyle: 'italic' },
   legendRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1 },
   legendDot: { width: 12, height: 12, borderRadius: 6, marginRight: 12 },
+  
   typingIndicator: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 10 },
   suggestionsContainer: { height: 44, marginBottom: 4 },
   chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 8, borderWidth: 1 },
   inputContainer: { flexDirection: 'row', alignItems: 'center', padding: 10, paddingBottom: Platform.OS === 'ios' ? 25 : 15, borderTopWidth: 1 },
   input: { flex: 1, borderRadius: 24, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 10, fontSize: 15, borderWidth: 1, maxHeight: 100 },
-  sendButton: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginLeft: 10 },
+  sendButton: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginLeft: 10 }
 });
