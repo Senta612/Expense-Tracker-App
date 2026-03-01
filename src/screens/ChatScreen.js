@@ -6,7 +6,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useExpenses } from '../context/ExpenseContext';
 import { PieChart } from 'react-native-chart-kit';
 
-// ✨ IMPORT THE NEW COMPONENT
 import FinBotHelpModal from '../components/FinBotHelpModal'; 
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -106,7 +105,7 @@ export default function ChatScreen({ navigation }) {
   const inputRef = useRef();
 
   const [messages, setMessages] = useState([
-    { id: '1', type: 'text', text: "Hi! I'm FinBot 🤖. I make logging money as easy as sending a text.\n\nTap the **?** icon at the top to see what I can do!", sender: 'bot', timestamp: new Date() }
+    { id: '1', type: 'text', text: "Hi! I'm FinBot. I make logging transactions as easy as sending a text.\n\nTap the **?** icon at the top to see what I can do.", sender: 'bot', timestamp: new Date() }
   ]);
   
   const suggestions = [
@@ -122,7 +121,7 @@ export default function ChatScreen({ navigation }) {
     if (lower === 'undo' && lastAddedId) { 
       deleteExpense(lastAddedId); 
       setLastAddedId(null); 
-      return { type: 'text', text: "Done! I removed that entry. 🗑️" }; 
+      return { type: 'text', text: "Done. I have removed that entry." }; 
     }
     if (lower.includes('change last amount') || lower.includes('update last amount')) {
       return handleUpdateCommand(text);
@@ -134,7 +133,7 @@ export default function ChatScreen({ navigation }) {
     if (lower.includes('chart') || lower.includes('graph')) return handleChartCommand();
     if (lower.includes('biggest') || lower.includes('highest')) return handleAnalysisCommand();
     
-    return { type: 'text', text: "Hmm, I didn't quite catch that. Try tapping the **?** icon above for some magic words! ✨" };
+    return { type: 'text', text: "I did not quite catch that. Try tapping the **?** icon above for some examples." };
   };
 
   const isCategoryKeyword = (text) => { 
@@ -164,20 +163,20 @@ export default function ChatScreen({ navigation }) {
   }
 
   const handleUpdateCommand = (text) => {
-      if (!lastAddedId) return { type: 'text', text: "I don't remember your last entry! 😅" };
+      if (!lastAddedId) return { type: 'text', text: "I do not have a record of your last entry." };
       const amountMatch = text.match(/(\d+(\.\d+)?)/);
       if (!amountMatch) return { type: 'text', text: "Please specify the new amount (e.g., 'change last amount to 500')." };
       const newAmount = parseFloat(amountMatch[0]);
       const lastExp = expenses.find(e => e.id === lastAddedId);
-      if (!lastExp) return { type: 'text', text: "Hmm, I couldn't find the last entry in the database." };
+      if (!lastExp) return { type: 'text', text: "I could not find the last entry in the database." };
 
       editExpense({ ...lastExp, amount: newAmount });
-      return { type: 'text', text: `✏️ Done! Updated **${lastExp.name}** to ${currency}${newAmount}.` };
+      return { type: 'text', text: `Done. Updated **${lastExp.name}** to ${currency}${newAmount}.` };
   };
 
   const handleAddCommand = (originalText, lower) => {
     const amountMatch = originalText.match(/(\d+(\.\d+)?)/);
-    if (!amountMatch) return { type: 'text', text: "I need an amount! (e.g. '100')" };
+    if (!amountMatch) return { type: 'text', text: "Please provide an amount (e.g. '100')." };
     
     const amount = parseFloat(amountMatch[0]);
     let date = parseDateString(lower); 
@@ -257,19 +256,18 @@ export default function ChatScreen({ navigation }) {
     addExpense({ id: newId, type: transactionType, name: finalTitle, amount, category, description, date: date.toISOString(), paymentMode, paymentApp });
     setLastAddedId(newId);
     
-    const typeEmoji = isIncome ? '💸' : '✅';
-    return { type: 'text', text: `${typeEmoji} Saved! **${currency}${amount}** for **${finalTitle}**.\n*(Cat: ${category} | Mode: ${paymentApp || paymentMode})*`, showUndo: true };
+    return { type: 'text', text: `Saved. **${currency}${amount}** for **${finalTitle}**.\n*(Cat: ${category} | Mode: ${paymentApp || paymentMode})*`, showUndo: true };
   };
 
   const handleSummaryCommand = (lower) => {
     let target = lower.includes('today') ? 'Today' : lower.includes('week') ? 'Week' : 'All';
     const total = getFilteredExpenses(target).reduce((sum, item) => sum + item.amount, 0);
-    return { type: 'text', text: `📊 ${target} Total: ${currency}${total.toLocaleString('en-IN')}` };
+    return { type: 'text', text: `${target} Total: ${currency}${total.toLocaleString('en-IN')}` };
   };
 
   const handleChartCommand = () => {
     const expenseList = expenses.filter(e => e.type === 'expense' || !e.type);
-    if (expenseList.length === 0) return { type: 'text', text: "No data yet!" };
+    if (expenseList.length === 0) return { type: 'text', text: "No data available." };
 
     const catTotals = {}; 
     let totalSum = 0;
@@ -286,9 +284,9 @@ export default function ChatScreen({ navigation }) {
 
   const handleAnalysisCommand = () => {
     const expenseList = expenses.filter(e => e.type === 'expense' || !e.type);
-    if (expenseList.length === 0) return { type: 'text', text: "No data to analyze." };
+    if (expenseList.length === 0) return { type: 'text', text: "No data available to analyze." };
     const max = expenseList.reduce((p, c) => (p.amount > c.amount) ? p : c);
-    return { type: 'text', text: `🏆 Biggest Expense: **${max.name}** (${currency}${max.amount})` };
+    return { type: 'text', text: `Biggest Expense: **${max.name}** (${currency}${max.amount})` };
   };
 
   const sendMessage = (customText = null) => {
@@ -362,7 +360,6 @@ export default function ChatScreen({ navigation }) {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       
-      {/* ✨ RENDER THE EXTRACTED COMPONENT */}
       <FinBotHelpModal visible={showHelpModal} onClose={() => setShowHelpModal(false)} onTryCommand={handleTryCommand} colors={colors} />
 
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
@@ -392,7 +389,7 @@ export default function ChatScreen({ navigation }) {
         {loading && (
           <View style={styles.typingIndicator}>
             <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={{color: colors.textSec, marginLeft: 8, fontSize: 12}}>Thinking...</Text>
+            <Text style={{color: colors.textSec, marginLeft: 8, fontSize: 12}}>Processing...</Text>
           </View>
         )}
         
