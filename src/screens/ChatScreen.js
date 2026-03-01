@@ -42,7 +42,8 @@ const LegendItem = ({ d, index, colors, currency }) => {
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <View style={[styles.legendDot, { backgroundColor: d.color }]} />
         {/* ✨ Ensured text strictly uses the dynamic theme colors */}
-        <Text style={{ fontSize: 15, color: colors.text, fontWeight: '600' }}>{d.name}</Text>
+        <Text style={{ fontSize: 15, color: '#FFFFFF', fontWeight: '600' }}>{d.name}</Text>
+
       </View>
       <View style={{ alignItems: 'flex-end' }}>
         <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>-{currency}{d.population.toLocaleString('en-IN')}</Text>
@@ -76,7 +77,9 @@ const AnimatedChartBubble = ({ item, colors, currency }) => {
 
   return (
     <Animated.View style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }], width: '100%' }}>
-      <Text style={[styles.chartTitle, { color: colors.text }]}>Spending Breakdown</Text>
+      <Text style={[styles.chartTitle, { color: '#FFFFFF' }]}>Spending Breakdown</Text>
+
+
 
       {/* DONUT CONTAINER */}
       <View style={[styles.donutContainer, { width: chartSize, height: chartSize, aspectRatio: 1 }]}>
@@ -98,9 +101,10 @@ const AnimatedChartBubble = ({ item, colors, currency }) => {
         
         {/* DONUT HOLE - Uses strictly colors.surface and colors.text */}
         <View style={[styles.donutHole, { backgroundColor: colors.surface, width: donutHoleSize, height: donutHoleSize, borderRadius: donutHoleSize / 2 }]}>
-          <Text style={{ fontSize: 8, color: colors.textSec, fontWeight: '700', letterSpacing: 1 }}>TOTAL</Text>
-          <Text style={{ fontSize: 14, fontWeight: '900', color: colors.text, marginTop: 2 }}>{currency}{item.totalSum.toLocaleString('en-IN')}</Text>
+          <Text style={{ fontSize: 8, color: '#FFFFFF', fontWeight: '700', letterSpacing: 1 }}>TOTAL</Text>
+          <Text style={{ fontSize: 14, fontWeight: '900', color: '#FFFFFF', marginTop: 2 }}>{currency}{item.totalSum.toLocaleString('en-IN')}</Text>
         </View>
+
 
       </View>
 
