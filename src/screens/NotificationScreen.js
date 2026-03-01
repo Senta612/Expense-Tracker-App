@@ -453,7 +453,7 @@ export default function NotificationScreen({ navigation }) {
         {reminders.length === 0 && (
             <Text style={{textAlign: 'center', color: colors.textSec, marginTop: 50}}>Tap + to add a reminder</Text>
         )}
-      </ScrollView>
+      </ScrollView> 
 
       {/* ALERT */}
       <CustomAlert 
