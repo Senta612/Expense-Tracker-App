@@ -4,7 +4,7 @@
     "slug": "ExpenseTracker",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/cost (1).png",
+    "icon": "./assets/images/cost.png",
     "scheme": "expensetracker",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -14,13 +14,13 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/cost (1).png",
-        "backgroundImage": "./assets/images/cost (1).png",
+        "foregroundImage": "./assets/images/cost.png",
+        "backgroundImage": "./assets/images/cost.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.parthiv_senta.ExpenseTracker",
+      "package": "com.parthivsenta.expensetracker",
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "NOTIFICATIONS",
@@ -30,14 +30,14 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/cost (1).png"
+      "favicon": "./assets/images/cost.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/cost(1).png",
+          "image": "./assets/images/cost.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
@@ -50,7 +50,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/cost (1).png",
+          "icon": "./assets/images/cost.png",
           "color": "#ffffff",
           "defaultChannel": "default"
         }
@@ -63,8 +63,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "a2e266c7-844d-455a-a3aa-aadb7d7130fe"
+        "projectId": "5a7af4fc-32b5-4cea-bca7-283ec990c3ad"
       }
-    }
+    },
+    "owner": "adminbhai"
   }
 }
