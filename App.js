@@ -30,23 +30,23 @@ Notifications.setNotificationHandler({
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// --- WHATSAPP MD3 TAB ICON RENDERER ---
+// --- EXACT WHATSAPP MD3 PILL RENDERER ---
 const renderWhatsAppTab = (focused, outlineIcon, filledIcon, colors) => {
   return (
     <View style={{
-      backgroundColor: focused ? colors.primary + '20' : 'transparent',
-      paddingHorizontal: 18,
-      paddingVertical: 4,
-      borderRadius: 20,
+      width: 64, // Exact MD3 Pill Width
+      height: 32, // Exact MD3 Pill Height
+      backgroundColor: focused ? colors.primary + '1A' : 'transparent', // 1A is ~10% opacity for a subtle, high-end look
+      borderRadius: 16, // Perfect half-height radius
       alignItems: 'center',
       justifyContent: 'center',
-      marginTop: 5
+      marginTop: 8, // Pushes the pill down slightly from the top border
     }}>
       <IconButton
         icon={focused ? filledIcon : outlineIcon}
-        size={24}
+        size={24} // Standard MD3 icon size
         iconColor={focused ? colors.primary : colors.textSec}
-        style={{ margin: 0 }}
+        style={{ margin: 0, width: 24, height: 24 }} // Force the button to not stretch the pill
       />
     </View>
   );
@@ -63,18 +63,19 @@ function MainTabs() {
           backgroundColor: colors.surface,
           borderTopWidth: 1,
           borderTopColor: colors.border,
-          height: Platform.OS === 'ios' ? 85 : 70,
-          paddingBottom: Platform.OS === 'ios' ? 25 : 12,
-          paddingTop: 5,
-          elevation: 0,
+          height: Platform.OS === 'ios' ? 88 : 80, // Taller bar to match WhatsApp
+          paddingBottom: Platform.OS === 'ios' ? 28 : 12,
+          paddingTop: 0,
+          elevation: 0, // Completely flat
           shadowOpacity: 0,
         },
         tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.textSec,
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: '700',
-          marginTop: 2
+          fontWeight: '600',
+          marginTop: 4, // Exact spacing between pill and text
+          marginBottom: Platform.OS === 'android' ? 8 : 0, // Lifts the text slightly off the bottom on Android
         }
       }}
     >
@@ -94,23 +95,6 @@ function MainTabs() {
           tabBarIcon: ({ focused }) => renderWhatsAppTab(focused, "chart-pie-outline", "chart-pie", colors)
         }}
       />
-
-      {/* ADD ENTRY TAB */}
-      <Tab.Screen
-        name="AddTab"
-        component={View}
-        options={{
-          tabBarLabel: 'Add',
-          tabBarIcon: ({ focused }) => renderWhatsAppTab(focused, "plus-circle-outline", "plus-circle", colors)
-        }}
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            e.preventDefault();
-            navigation.navigate('AddExpense');
-          },
-        })}
-      />
-
       <Tab.Screen
         name="FilterTab"
         component={FilterScreen}
@@ -170,7 +154,7 @@ export default function App() {
         }
 
         if (finalStatus !== 'granted') {
-          console.log('Notification permissions denied by user!');
+          console.log('Notification permissions denied by user.');
           return;
         }
       }
