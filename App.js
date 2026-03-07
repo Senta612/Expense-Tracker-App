@@ -30,23 +30,22 @@ Notifications.setNotificationHandler({
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// --- EXACT WHATSAPP MD3 PILL RENDERER ---
 const renderWhatsAppTab = (focused, outlineIcon, filledIcon, colors) => {
   return (
     <View style={{
-      width: 64, // Exact MD3 Pill Width
-      height: 32, // Exact MD3 Pill Height
-      backgroundColor: focused ? colors.primary + '1A' : 'transparent', // 1A is ~10% opacity for a subtle, high-end look
-      borderRadius: 16, // Perfect half-height radius
+      width: 64,
+      height: 32,
+      backgroundColor: focused ? colors.primary + '1A' : 'transparent',
+      borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',
-      marginTop: 8, // Pushes the pill down slightly from the top border
+      marginTop: 8,
     }}>
       <IconButton
         icon={focused ? filledIcon : outlineIcon}
-        size={24} // Standard MD3 icon size
+        size={24}
         iconColor={focused ? colors.primary : colors.textSec}
-        style={{ margin: 0, width: 24, height: 24 }} // Force the button to not stretch the pill
+        style={{ margin: 0, width: 24, height: 24 }}
       />
     </View>
   );
@@ -63,10 +62,10 @@ function MainTabs() {
           backgroundColor: colors.surface,
           borderTopWidth: 1,
           borderTopColor: colors.border,
-          height: Platform.OS === 'ios' ? 88 : 80, // Taller bar to match WhatsApp
+          height: Platform.OS === 'ios' ? 88 : 80,
           paddingBottom: Platform.OS === 'ios' ? 28 : 12,
           paddingTop: 0,
-          elevation: 0, // Completely flat
+          elevation: 0,
           shadowOpacity: 0,
         },
         tabBarActiveTintColor: colors.text,
@@ -74,13 +73,14 @@ function MainTabs() {
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '600',
-          marginTop: 4, // Exact spacing between pill and text
-          marginBottom: Platform.OS === 'android' ? 8 : 0, // Lifts the text slightly off the bottom on Android
+          marginTop: 4,
+          marginBottom: Platform.OS === 'android' ? 8 : 0,
         }
       }}
     >
+      {/* ✨ FIX: Renamed these back to their original names so buttons work! */}
       <Tab.Screen
-        name="HomeTab"
+        name="Home"
         component={HomeScreen}
         options={{
           tabBarLabel: 'Home',
@@ -88,7 +88,7 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="StatsTab"
+        name="Stats"
         component={StatsScreen}
         options={{
           tabBarLabel: 'Stats',
@@ -96,7 +96,7 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="FilterTab"
+        name="Filter"
         component={FilterScreen}
         options={{
           tabBarLabel: 'Filter',
@@ -104,7 +104,7 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="SettingsTab"
+        name="Settings"
         component={SettingsScreen}
         options={{
           tabBarLabel: 'Settings',
