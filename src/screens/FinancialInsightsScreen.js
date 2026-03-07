@@ -38,35 +38,33 @@ const CATEGORY_ICONS = {
 };
 
 // --- INTERACTIVE DONUT CHART COMPONENT ---
-const InteractiveDonutChart = ({ 
-  data, 
-  size = 160, 
-  strokeWidth = 24, 
-  selectedIndex, 
+// ✨ FIX: Added `colors` as a prop so it can adapt to Dark Mode
+const InteractiveDonutChart = ({
+  data,
+  size = 160,
+  strokeWidth = 24,
+  selectedIndex,
   onSelect,
-  centerData 
+  centerData,
+  colors
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.85)).current;
   const centerFadeAnim = useRef(new Animated.Value(0)).current;
   const centerScaleAnim = useRef(new Animated.Value(0.9)).current;
-  
-  // Calculate center and radius
+
   const center = size / 2;
   const radius = (size - strokeWidth) / 2;
-  const donutHoleSize = size * 0.42; // Proportional hole size
-  
-  // Calculate total
+  const donutHoleSize = size * 0.42;
+
   const total = useMemo(() => data.reduce((sum, item) => sum + item.value, 0), [data]);
 
-  // Animate on mount - premium chart load
   useEffect(() => {
     Animated.sequence([
       Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
       Animated.spring(scaleAnim, { toValue: 1, friction: 8, tension: 40, useNativeDriver: true }),
     ]).start();
-    
-    // Center content fade in
+
     Animated.sequence([
       Animated.delay(200),
       Animated.parallel([
@@ -76,7 +74,6 @@ const InteractiveDonutChart = ({
     ]).start();
   }, []);
 
-  // Animate center content when selection changes - crossfade
   useEffect(() => {
     Animated.sequence([
       Animated.timing(centerFadeAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
@@ -84,34 +81,33 @@ const InteractiveDonutChart = ({
     ]).start();
   }, [selectedIndex, centerData]);
 
-  // Calculate segments
   let currentAngle = -90;
-  
+
   const segments = useMemo(() => {
     return data.map((item) => {
       const percentage = total > 0 ? (item.value / total) * 100 : 0;
       const angle = (percentage / 100) * 360;
       const isSelected = selectedIndex === data.indexOf(item);
-      
+
       const startAngle = currentAngle;
       const endAngle = currentAngle + angle;
       currentAngle = endAngle;
-      
+
       const startRad = (startAngle * Math.PI) / 180;
       const endRad = (endAngle * Math.PI) / 180;
-      
+
       const x1 = center + radius * Math.cos(startRad);
       const y1 = center + radius * Math.sin(startRad);
       const x2 = center + radius * Math.cos(endRad);
       const y2 = center + radius * Math.sin(endRad);
-      
+
       const largeArcFlag = angle > 180 ? 1 : 0;
-      
+
       const pathData = [
         `M ${x1} ${y1}`,
         `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
       ].join(' ');
-      
+
       return {
         ...item,
         percentage,
@@ -122,25 +118,23 @@ const InteractiveDonutChart = ({
     });
   }, [data, total, selectedIndex, center, radius]);
 
-
   const handleSegmentPress = (index) => {
     onSelect(index === selectedIndex ? null : index);
   };
 
   const displayContent = selectedIndex !== null ? centerData : { label: 'TOTAL', amount: total };
 
-  // Subtle scale for selected segment (1.04 = 4% increase)
   const getStrokeWidth = (segment) => segment.isSelected ? strokeWidth * 1.04 : strokeWidth;
 
   return (
     <View style={[styles.chartWrapper, { width: size, height: size }]}>
-      <Animated.View 
+      <Animated.View
         style={[
-          styles.chartContainer, 
-          { 
-            width: size, 
-            height: size, 
-            opacity: fadeAnim, 
+          styles.chartContainer,
+          {
+            width: size,
+            height: size,
+            opacity: fadeAnim,
             transform: [{ scale: scaleAnim }],
             overflow: 'visible',
           }
@@ -163,26 +157,26 @@ const InteractiveDonutChart = ({
           </G>
         </Svg>
       </Animated.View>
-      
-      {/* Center Display - perfectly centered using flex */}
-      <Animated.View 
+
+      <Animated.View
         style={[
-          styles.chartCenterOverlay, 
-          { 
-            opacity: centerFadeAnim, 
+          styles.chartCenterOverlay,
+          {
+            opacity: centerFadeAnim,
             transform: [{ scale: centerScaleAnim }],
           }
         ]}
         pointerEvents="none"
       >
-        <Text style={[styles.centerLabel, { color: '#888' }]}>
+        {/* ✨ FIX: Dynamic text colors instead of hardcoded hex values */}
+        <Text style={[styles.centerLabel, { color: colors.textSec }]}>
           {displayContent.label}
         </Text>
-        <Text style={[styles.centerAmount, { color: '#1A1A1A' }]}>
+        <Text style={[styles.centerAmount, { color: colors.text }]}>
           {displayContent.amount}
         </Text>
         {selectedIndex !== null && (
-          <Text style={styles.centerPercentage}>
+          <Text style={[styles.centerPercentage, { color: colors.textSec }]}>
             {displayContent.percentage}%
           </Text>
         )}
@@ -190,8 +184,6 @@ const InteractiveDonutChart = ({
     </View>
   );
 };
-
-
 
 // --- BUDGET CARD COMPONENT ---
 const BudgetCard = ({ spent, budget, currency, colors }) => {
@@ -201,9 +193,9 @@ const BudgetCard = ({ spent, budget, currency, colors }) => {
   const radius = (ringSize - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
-  
+
   const progressAnim = useRef(new Animated.Value(0)).current;
-  
+
   useEffect(() => {
     Animated.timing(progressAnim, {
       toValue: percentage,
@@ -218,30 +210,10 @@ const BudgetCard = ({ spent, budget, currency, colors }) => {
   return (
     <Surface style={[styles.budgetCard, { backgroundColor: colors.surface }]}>
       <View style={styles.budgetContent}>
-        {/* LEFT - Circular Progress */}
         <View style={styles.ringContainer}>
           <Svg width={ringSize} height={ringSize}>
-            <Circle
-              cx={ringSize / 2}
-              cy={ringSize / 2}
-              r={radius}
-              stroke={colors.border}
-              strokeWidth={strokeWidth}
-              fill="none"
-            />
-            <Circle
-              cx={ringSize / 2}
-              cy={ringSize / 2}
-              r={radius}
-              stroke={isOverBudget ? colors.error : colors.primary}
-              strokeWidth={strokeWidth}
-              fill="none"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-              rotation="-90"
-              origin={`${ringSize / 2}, ${ringSize / 2}`}
-            />
+            <Circle cx={ringSize / 2} cy={ringSize / 2} r={radius} stroke={colors.border} strokeWidth={strokeWidth} fill="none" />
+            <Circle cx={ringSize / 2} cy={ringSize / 2} r={radius} stroke={isOverBudget ? colors.error : colors.primary} strokeWidth={strokeWidth} fill="none" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} strokeLinecap="round" rotation="-90" origin={`${ringSize / 2}, ${ringSize / 2}`} />
           </Svg>
           <View style={styles.ringCenter}>
             <Text style={[styles.ringPercentage, { color: isOverBudget ? colors.error : colors.text }]}>
@@ -251,23 +223,22 @@ const BudgetCard = ({ spent, budget, currency, colors }) => {
           </View>
         </View>
 
-        {/* RIGHT - Budget Details */}
         <View style={styles.budgetDetails}>
           <Text style={[styles.budgetTitle, { color: colors.textSec }]}>MONTHLY BUDGET</Text>
-          
+
           <View style={styles.progressBarContainer}>
             <View style={[styles.progressBarBg, { backgroundColor: colors.border }]}>
-              <Animated.View 
+              <Animated.View
                 style={[
-                  styles.progressBarFill, 
-                  { 
+                  styles.progressBarFill,
+                  {
                     backgroundColor: isOverBudget ? colors.error : colors.primary,
                     width: progressAnim.interpolate({
                       inputRange: [0, 100],
                       outputRange: ['0%', '100%']
                     })
                   }
-                ]} 
+                ]}
               />
             </View>
           </View>
@@ -282,7 +253,7 @@ const BudgetCard = ({ spent, budget, currency, colors }) => {
           </View>
 
           <Text style={[styles.remainingText, { color: isOverBudget ? colors.error : colors.success }]}>
-            {isOverBudget 
+            {isOverBudget
               ? `${currency}${Math.abs(remaining).toLocaleString('en-IN')} over budget`
               : `${currency}${remaining.toLocaleString('en-IN')} remaining`
             }
@@ -294,16 +265,18 @@ const BudgetCard = ({ spent, budget, currency, colors }) => {
 };
 
 // --- CATEGORY INSIGHT ROW COMPONENT ---
-const CategoryInsightRow = ({ 
-  name, 
-  amount, 
-  percentage, 
-  color, 
-  icon, 
-  currency, 
-  index, 
+// ✨ FIX: Added `colors` prop here too
+const CategoryInsightRow = ({
+  name,
+  amount,
+  percentage,
+  color,
+  icon,
+  currency,
+  index,
   isSelected,
-  onPress 
+  onPress,
+  colors
 }) => {
   const translateY = useRef(new Animated.Value(20)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -319,15 +292,15 @@ const CategoryInsightRow = ({
   const backgroundColor = isSelected ? color + '12' : isPressed ? color + '08' : 'transparent';
 
   return (
-    <Pressable 
+    <Pressable
       onPress={onPress}
       onPressIn={() => setIsPressed(true)}
       onPressOut={() => setIsPressed(false)}
     >
-      <Animated.View 
+      <Animated.View
         style={[
-          styles.insightRow, 
-          { 
+          styles.insightRow,
+          {
             transform: [{ translateY }],
             opacity,
             backgroundColor,
@@ -335,29 +308,28 @@ const CategoryInsightRow = ({
           }
         ]}
       >
-
         <View style={styles.insightLeft}>
           <View style={[styles.insightIconBox, { backgroundColor: color + '20' }]}>
             <IconButton icon={icon} size={18} iconColor={color} style={{ margin: 0 }} />
           </View>
           <View style={styles.insightInfo}>
-            <Text style={[styles.insightName, { color: '#1A1A1A' }]}>{name}</Text>
-            {/* Mini Progress Bar */}
-            <View style={[styles.miniBarBg, { backgroundColor: '#E0E0E0' }]}>
-              <Animated.View 
+            {/* ✨ FIX: Dynamic text and background colors */}
+            <Text style={[styles.insightName, { color: colors.text }]}>{name}</Text>
+            <View style={[styles.miniBarBg, { backgroundColor: colors.border }]}>
+              <Animated.View
                 style={[
-                  styles.miniBarFill, 
+                  styles.miniBarFill,
                   { backgroundColor: color, width: `${percentage}%` }
-                ]} 
+                ]}
               />
             </View>
           </View>
         </View>
         <View style={styles.insightRight}>
-          <Text style={[styles.insightAmount, { color: '#1A1A1A' }]}>
+          <Text style={[styles.insightAmount, { color: colors.text }]}>
             {currency}{amount.toLocaleString('en-IN')}
           </Text>
-          <Text style={[styles.insightPercentage, { color: '#888' }]}>
+          <Text style={[styles.insightPercentage, { color: colors.textSec }]}>
             {percentage.toFixed(1)}%
           </Text>
         </View>
@@ -367,13 +339,13 @@ const CategoryInsightRow = ({
 };
 
 // --- SPENDING BREAKDOWN CARD COMPONENT ---
-const SpendingBreakdownCard = ({ 
-  data, 
-  total, 
-  currency, 
-  colors, 
+const SpendingBreakdownCard = ({
+  data,
+  total,
+  currency,
+  colors,
   selectedIndex,
-  onSelectCategory 
+  onSelectCategory
 }) => {
   const [localSelected, setLocalSelected] = useState(null);
 
@@ -397,7 +369,6 @@ const SpendingBreakdownCard = ({
 
   return (
     <Surface style={[styles.breakdownCard, { backgroundColor: colors.surface }]}>
-      {/* Section Header */}
       <View style={styles.breakdownHeader}>
         <View>
           <Text style={[styles.breakdownTitle, { color: colors.text }]}>Spending Breakdown</Text>
@@ -412,10 +383,9 @@ const SpendingBreakdownCard = ({
           </Text>
         </View>
       </View>
-      
+
       <View style={[styles.headerDivider, { backgroundColor: colors.border }]} />
 
-      {/* Top Category Badge */}
       {topCategory && (
         <View style={[styles.topCategoryBadge, { backgroundColor: topCategory.color + '15' }]}>
           <Text style={[styles.topCategoryLabel, { color: colors.textSec }]}>Top Category</Text>
@@ -425,19 +395,17 @@ const SpendingBreakdownCard = ({
         </View>
       )}
 
-      {/* Chart Container - with internal padding for animation space */}
       <View style={styles.chartCardContainer}>
         {data.length > 0 ? (
-          <>
-            <InteractiveDonutChart 
-              data={data}
-              size={Math.min(SCREEN_WIDTH * 0.45, 160)}
-              strokeWidth={24}
-              selectedIndex={localSelected}
-              onSelect={handleSelect}
-              centerData={centerData}
-            />
-          </>
+          <InteractiveDonutChart
+            data={data}
+            size={Math.min(SCREEN_WIDTH * 0.45, 160)}
+            strokeWidth={24}
+            selectedIndex={localSelected}
+            onSelect={handleSelect}
+            centerData={centerData}
+            colors={colors} // ✨ FIX: Passed colors down
+          />
         ) : (
           <View style={styles.emptyChart}>
             <IconButton icon="chart-donut" size={50} iconColor={colors.textSec} />
@@ -446,8 +414,6 @@ const SpendingBreakdownCard = ({
         )}
       </View>
 
-
-      {/* Legend / Analytics List */}
       <View style={styles.legendList}>
         {data.map((item, index) => (
           <CategoryInsightRow
@@ -461,6 +427,7 @@ const SpendingBreakdownCard = ({
             index={index}
             isSelected={localSelected === index}
             onPress={() => handleListSelect(index)}
+            colors={colors} // ✨ FIX: Passed colors down
           />
         ))}
       </View>
@@ -470,30 +437,26 @@ const SpendingBreakdownCard = ({
 
 // --- MAIN SCREEN ---
 export default function FinancialInsightsScreen({ navigation }) {
-  const { getFilteredExpenses, colors, currency, budget, budgetPeriod, isDark } = useExpenses();
+  const { getFilteredExpenses, colors, currency, budget } = useExpenses();
   const [timeFilter, setTimeFilter] = useState('Month');
   const [selectedCategory, setSelectedCategory] = useState(null);
 
-  // Data processing
   const currentData = getFilteredExpenses(timeFilter);
   const expenses = currentData.filter(item => item.type === 'expense' || !item.type);
   const totalExpense = expenses.reduce((sum, item) => sum + item.amount, 0);
-  
-  // Group by category
+
   const categoryTotals = expenses.reduce((acc, item) => {
     const cat = item.category || 'Other';
     acc[cat] = (acc[cat] || 0) + item.amount;
     return acc;
   }, {});
 
-  // Sort categories by amount and assign colors by rank
   const sortedCategories = useMemo(() => {
     const sorted = Object.entries(categoryTotals)
       .map(([name, value], index) => ({
         name,
         value,
         percentage: totalExpense > 0 ? (value / totalExpense) * 100 : 0,
-        // Color based on rank (index) - top 10 get unique colors, rest get fallback
         color: index < COLOR_PALETTE.length ? COLOR_PALETTE[index] : FALLBACK_COLOR,
         icon: CATEGORY_ICONS[name] || 'dots-horizontal',
         rank: index,
@@ -502,12 +465,10 @@ export default function FinancialInsightsScreen({ navigation }) {
     return sorted;
   }, [categoryTotals, totalExpense]);
 
-
   const monthlyBudget = budget || 7000;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
-      {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <IconButton icon="arrow-left" size={24} iconColor={colors.text} />
@@ -516,7 +477,6 @@ export default function FinancialInsightsScreen({ navigation }) {
         <View style={{ width: 48 }} />
       </View>
 
-      {/* TIME FILTERS */}
       <View style={styles.filterContainer}>
         {['Week', 'Month', 'Year'].map(filter => (
           <TouchableOpacity
@@ -527,7 +487,7 @@ export default function FinancialInsightsScreen({ navigation }) {
             }}
             style={[
               styles.filterPill,
-              timeFilter === filter 
+              timeFilter === filter
                 ? { backgroundColor: colors.primary }
                 : { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }
             ]}
@@ -542,20 +502,18 @@ export default function FinancialInsightsScreen({ navigation }) {
         ))}
       </View>
 
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* BUDGET CARD */}
-        <BudgetCard 
-          spent={totalExpense} 
-          budget={monthlyBudget} 
+        <BudgetCard
+          spent={totalExpense}
+          budget={monthlyBudget}
           currency={currency}
           colors={colors}
         />
 
-        {/* SPENDING BREAKDOWN CARD */}
-        <SpendingBreakdownCard 
+        <SpendingBreakdownCard
           data={sortedCategories}
           total={totalExpense}
           currency={currency}
@@ -595,8 +553,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
-  
-  // Budget Card Styles
+
   budgetCard: {
     borderRadius: 20,
     padding: 20,
@@ -633,7 +590,6 @@ const styles = StyleSheet.create({
   amountLimit: { fontSize: 14, marginLeft: 4 },
   remainingText: { fontSize: 13, fontWeight: '600' },
 
-  // Spending Breakdown Card Styles
   breakdownCard: {
     borderRadius: 20,
     padding: 20,
@@ -651,8 +607,7 @@ const styles = StyleSheet.create({
   totalLabel: { fontSize: 11, fontWeight: '500' },
   totalValue: { fontSize: 18, fontWeight: '800' },
   headerDivider: { height: 1, marginVertical: 16, opacity: 0.3 },
-  
-  // Top Category Badge
+
   topCategoryBadge: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -665,7 +620,6 @@ const styles = StyleSheet.create({
   topCategoryLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase' },
   topCategoryValue: { fontSize: 14, fontWeight: '700' },
 
-  // Chart Container
   chartCardContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -694,19 +648,16 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     letterSpacing: 1,
-    color: '#888',
     textAlign: 'center',
   },
   centerAmount: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#1A1A1A',
     textAlign: 'center',
   },
   centerPercentage: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#666',
     marginTop: 2,
   },
   emptyChart: {
@@ -715,7 +666,6 @@ const styles = StyleSheet.create({
   },
   emptyText: { fontSize: 14, marginTop: 8 },
 
-  // Legend / Analytics List
   legendList: {
     marginTop: 8,
   },
