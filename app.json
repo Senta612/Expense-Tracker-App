@@ -4,7 +4,7 @@
     "slug": "ExpenseTracker",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/cost.png",
+    "icon": "./assets/images/new-logo.png",
     "scheme": "expensetracker",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -14,8 +14,8 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/cost.png",
-        "backgroundImage": "./assets/images/cost.png",
+        "foregroundImage": "./assets/images/new-logo.png",
+        "backgroundImage": "./assets/images/new-logo.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
@@ -31,14 +31,14 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/cost.png"
+      "favicon": "./assets/images/new-logo.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/cost.png",
+          "image": "./assets/images/new-logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
@@ -51,7 +51,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/cost.png",
+          "icon": "./assets/images/new-logo.png",
           "color": "#ffffff",
           "defaultChannel": "default"
         }
