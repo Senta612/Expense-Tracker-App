@@ -7,17 +7,16 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useExpenses } from '../context/ExpenseContext';
 
-// Enable Layout Animations for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
 // --- 1. REMINDER CARD COMPONENT ---
 const ReminderCard = ({ item, index, colors, onDeletePress, onSave, onToggle, isOpen, toggleExpand, onCancelNew, isDeleting }) => {
-  const slideAnim = useRef(new Animated.Value(50)).current; 
-  const fadeAnim = useRef(new Animated.Value(0)).current; 
-  const scaleAnim = useRef(new Animated.Value(1)).current; 
-  const shakeAnim = useRef(new Animated.Value(0)).current; 
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
 
   const [tempData, setTempData] = useState({ title: item.title, body: item.body, time: new Date(item.time) });
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -30,15 +29,15 @@ const ReminderCard = ({ item, index, colors, onDeletePress, onSave, onToggle, is
   }, [index]);
 
   useEffect(() => {
-     setTempData({ title: item.title, body: item.body, time: new Date(item.time) });
+    setTempData({ title: item.title, body: item.body, time: new Date(item.time) });
   }, [item]);
 
   useEffect(() => {
     if (isDeleting) {
-        Animated.parallel([
-            Animated.timing(scaleAnim, { toValue: 0, duration: 250, useNativeDriver: true }),
-            Animated.timing(fadeAnim, { toValue: 0, duration: 250, useNativeDriver: true })
-        ]).start();
+      Animated.parallel([
+        Animated.timing(scaleAnim, { toValue: 0, duration: 250, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 0, duration: 250, useNativeDriver: true })
+      ]).start();
     }
   }, [isDeleting]);
 
@@ -54,8 +53,8 @@ const ReminderCard = ({ item, index, colors, onDeletePress, onSave, onToggle, is
 
   const handleSave = () => {
     if (!tempData.title || tempData.title.trim() === '') {
-        triggerShake();
-        return;
+      triggerShake();
+      return;
     }
     onSave(item.id, tempData);
   };
@@ -70,98 +69,96 @@ const ReminderCard = ({ item, index, colors, onDeletePress, onSave, onToggle, is
   return (
     <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }, { translateX: shakeAnim }, { scale: scaleAnim }], marginBottom: 16 }}>
       <Surface style={[styles.card, { backgroundColor: colors.surface, borderColor: isOpen ? colors.primary : colors.border, borderWidth: isOpen ? 1.5 : 1, elevation: isOpen ? 8 : 0, shadowColor: isOpen ? "#000" : "transparent", shadowOpacity: isOpen ? 0.15 : 0, shadowRadius: isOpen ? 8 : 0 }]}>
-        
-        {/* HEADER */}
+
         <TouchableOpacity activeOpacity={0.9} onPress={() => toggleExpand(item.id)} style={styles.cardHeader}>
-            <View style={[styles.iconBox, { backgroundColor: item.active ? colors.primary + '15' : colors.background }]}>
-                <Avatar.Icon size={42} icon={item.icon || 'bell-ring'} color={item.active ? colors.primary : colors.textSec} style={{backgroundColor: 'transparent'}} />
-            </View>
+          <View style={[styles.iconBox, { backgroundColor: item.active ? colors.primary + '15' : colors.background }]}>
+            <Avatar.Icon size={42} icon={item.icon || 'bell-ring'} color={item.active ? colors.primary : colors.textSec} style={{ backgroundColor: 'transparent' }} />
+          </View>
 
-            <View style={{flex: 1, paddingHorizontal: 12}}>
-                <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                    <Text style={[styles.cardTitle, { color: colors.text, opacity: item.active ? 1 : 0.5 }]}>{item.title || "New Reminder"}</Text>
-                    {!item.title && <Text style={{color: colors.error, fontSize: 14, fontWeight: 'bold'}}> *</Text>}
-                </View>
-                {!isOpen && (
-                    <Text style={{color: colors.primary, fontWeight: '700', fontSize: 12, marginTop: 4}}>
-                        {new Date(item.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                    </Text>
-                )}
+          <View style={{ flex: 1, paddingHorizontal: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={[styles.cardTitle, { color: colors.text, opacity: item.active ? 1 : 0.5 }]}>{item.title || "New Reminder"}</Text>
+              {!item.title && <Text style={{ color: colors.error, fontSize: 14, fontWeight: 'bold' }}> *</Text>}
             </View>
-
-            {!isOpen ? (
-                <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                    <TouchableOpacity onPress={() => toggleExpand(item.id)} style={[styles.miniBtn, {backgroundColor: colors.background, marginRight: 8}]}>
-                        <IconButton icon="pencil" size={18} iconColor={colors.textSec} style={{margin: 0}} />
-                    </TouchableOpacity>
-                    <Switch value={item.active} onValueChange={() => onToggle(item.id)} color={colors.primary} />
-                </View>
-            ) : (
-                <IconButton icon="chevron-up" iconColor={colors.primary} size={24} onPress={() => toggleExpand(item.id)} />
+            {!isOpen && (
+              <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 12, marginTop: 4 }}>
+                {new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Text>
             )}
+          </View>
+
+          {!isOpen ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity onPress={() => toggleExpand(item.id)} style={[styles.miniBtn, { backgroundColor: colors.background, marginRight: 8 }]}>
+                <IconButton icon="pencil" size={18} iconColor={colors.textSec} style={{ margin: 0 }} />
+              </TouchableOpacity>
+              <Switch value={item.active} onValueChange={() => onToggle(item.id)} color={colors.primary} />
+            </View>
+          ) : (
+            <IconButton icon="chevron-up" iconColor={colors.primary} size={24} onPress={() => toggleExpand(item.id)} />
+          )}
         </TouchableOpacity>
 
-        {/* EXPANDED CONTENT */}
         {isOpen && (
-            <View style={styles.expandedContent}>
-                <View style={[styles.inputContainer, { backgroundColor: colors.background }]}>
-                    <View style={{flexDirection: 'row'}}>
-                         <Text style={{color: colors.textSec, fontSize: 10, marginBottom: 2}}>Title</Text>
-                         <Text style={{color: colors.error, fontSize: 10, marginBottom: 2}}> *</Text>
-                    </View>
-                    <TextInput 
-                        value={tempData.title} onChangeText={t => setTempData({...tempData, title: t})}
-                        style={[styles.rawInput, { color: colors.text, fontWeight: 'bold' }]}
-                        placeholder="e.g. Dinner" placeholderTextColor={colors.textSec}
-                        underlineColorAndroid="transparent" dense autoFocus={!item.title}
-                    />
-                    <View style={[styles.divider, { backgroundColor: colors.border }]} />
-                    <Text style={{color: colors.textSec, fontSize: 10, marginBottom: 2, marginTop: 8}}>Message</Text>
-                    <TextInput 
-                        value={tempData.body} onChangeText={t => setTempData({...tempData, body: t})}
-                        style={[styles.rawInput, { color: colors.text }]}
-                        placeholder="e.g. Log your expense..." placeholderTextColor={colors.textSec}
-                        underlineColorAndroid="transparent" dense
-                    />
-                </View>
-
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
-                    <TouchableOpacity onPress={() => setShowTimePicker(true)} style={[styles.timeBtn, { backgroundColor: colors.background, flex: 1, marginRight: 10 }]}>
-                        <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                            <IconButton icon="clock-outline" size={18} iconColor={colors.primary} style={{margin: 0}} />
-                            <Text style={{color: colors.textSec, marginLeft: 5, fontWeight: '500'}}>Time</Text>
-                            <Text style={{color: colors.error, fontSize: 12}}> *</Text>
-                        </View>
-                        <Text style={{color: colors.text, fontWeight: 'bold', fontSize: 18}}>
-                            {tempData.time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                        </Text>
-                    </TouchableOpacity>
-
-                    {showTimePicker && (
-                        <DateTimePicker 
-                            value={tempData.time} 
-                            mode="time" 
-                            display={Platform.OS === 'ios' ? 'spinner' : 'default'} 
-                            onChange={onTimeChange} 
-                        />
-                    )}
-                </View>
-
-                <View style={styles.actionRow}>
-                    {!item.saved ? (
-                        <Button mode="outlined" onPress={() => onCancelNew(item.id)} style={{flex: 1, borderColor: colors.border, borderRadius: 12, marginRight: 10}} textColor={colors.textSec} labelStyle={{fontSize: 13}}>Cancel</Button>
-                    ) : (
-                        <TouchableOpacity onPress={() => onDeletePress(item.id)} style={[styles.deleteBtn, { backgroundColor: colors.error + '15', marginRight: 10 }]}>
-                            <IconButton icon="trash-can-outline" size={22} iconColor={colors.error} style={{margin: 0}} />
-                        </TouchableOpacity>
-                    )}
-                    
-                    <TouchableOpacity onPress={handleSave} style={[styles.saveBtn, { backgroundColor: colors.primary, flex: 2 }]}>
-                        <Text style={[styles.saveText, { fontSize: 14 }]} numberOfLines={1}>{item.saved ? "Save Changes" : "Add Reminder"}</Text>
-                        <IconButton icon="check" size={16} iconColor="#FFF" style={{margin: 0}} />
-                    </TouchableOpacity>
-                </View>
+          <View style={styles.expandedContent}>
+            <View style={[styles.inputContainer, { backgroundColor: colors.background }]}>
+              <View style={{ flexDirection: 'row' }}>
+                <Text style={{ color: colors.textSec, fontSize: 10, marginBottom: 2 }}>Title</Text>
+                <Text style={{ color: colors.error, fontSize: 10, marginBottom: 2 }}> *</Text>
+              </View>
+              <TextInput
+                value={tempData.title} onChangeText={t => setTempData({ ...tempData, title: t })}
+                style={[styles.rawInput, { color: colors.text, fontWeight: 'bold' }]}
+                placeholder="e.g. Dinner" placeholderTextColor={colors.textSec}
+                underlineColorAndroid="transparent" dense autoFocus={!item.title}
+              />
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <Text style={{ color: colors.textSec, fontSize: 10, marginBottom: 2, marginTop: 8 }}>Message</Text>
+              <TextInput
+                value={tempData.body} onChangeText={t => setTempData({ ...tempData, body: t })}
+                style={[styles.rawInput, { color: colors.text }]}
+                placeholder="e.g. Log your expense..." placeholderTextColor={colors.textSec}
+                underlineColorAndroid="transparent" dense
+              />
             </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+              <TouchableOpacity onPress={() => setShowTimePicker(true)} style={[styles.timeBtn, { backgroundColor: colors.background, flex: 1, marginRight: 10 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <IconButton icon="clock-outline" size={18} iconColor={colors.primary} style={{ margin: 0 }} />
+                  <Text style={{ color: colors.textSec, marginLeft: 5, fontWeight: '500' }}>Time</Text>
+                  <Text style={{ color: colors.error, fontSize: 12 }}> *</Text>
+                </View>
+                <Text style={{ color: colors.text, fontWeight: 'bold', fontSize: 18 }}>
+                  {tempData.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </Text>
+              </TouchableOpacity>
+
+              {showTimePicker && (
+                <DateTimePicker
+                  value={tempData.time}
+                  mode="time"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={onTimeChange}
+                />
+              )}
+            </View>
+
+            <View style={styles.actionRow}>
+              {!item.saved ? (
+                <Button mode="outlined" onPress={() => onCancelNew(item.id)} style={{ flex: 1, borderColor: colors.border, borderRadius: 12, marginRight: 10 }} textColor={colors.textSec} labelStyle={{ fontSize: 13 }}>Cancel</Button>
+              ) : (
+                <TouchableOpacity onPress={() => onDeletePress(item.id)} style={[styles.deleteBtn, { backgroundColor: colors.error + '15', marginRight: 10 }]}>
+                  <IconButton icon="trash-can-outline" size={22} iconColor={colors.error} style={{ margin: 0 }} />
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity onPress={handleSave} style={[styles.saveBtn, { backgroundColor: colors.primary, flex: 2 }]}>
+                <Text style={[styles.saveText, { fontSize: 14 }]} numberOfLines={1}>{item.saved ? "Save Changes" : "Add Reminder"}</Text>
+                <IconButton icon="check" size={16} iconColor="#FFF" style={{ margin: 0 }} />
+              </TouchableOpacity>
+            </View>
+          </View>
         )}
       </Surface>
     </Animated.View>
@@ -180,15 +177,15 @@ const CustomAlert = ({ visible, onClose, onConfirm, colors }) => {
         Animated.spring(scaleAnim, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true })
       ]).start();
     } else {
-        scaleAnim.setValue(0);
-        fadeAnim.setValue(0);
+      scaleAnim.setValue(0);
+      fadeAnim.setValue(0);
     }
   }, [visible]);
 
   const animateClose = (callback) => {
     Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
-        Animated.timing(scaleAnim, { toValue: 0.8, duration: 200, useNativeDriver: true })
+      Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+      Animated.timing(scaleAnim, { toValue: 0.8, duration: 200, useNativeDriver: true })
     ]).start(() => callback());
   };
 
@@ -198,16 +195,16 @@ const CustomAlert = ({ visible, onClose, onConfirm, colors }) => {
     <Modal transparent visible={visible} onRequestClose={() => animateClose(onClose)}>
       <View style={styles.modalOverlay}>
         <Animated.View style={[styles.alertBox, { backgroundColor: colors.surface, opacity: fadeAnim, transform: [{ scale: scaleAnim }] }]}>
-            <View style={[styles.alertIconCircle, { backgroundColor: '#FEE2E2' }]}>
-                <IconButton icon="trash-can" size={32} iconColor={colors.error} style={{margin: 0}} />
-            </View>
-            <Text style={[styles.alertTitle, { color: colors.text }]}>Delete Reminder?</Text>
-            <Text style={[styles.alertDesc, { color: colors.textSec }]}>This will remove it permanently.</Text>
-            
-            <View style={styles.alertBtnRow}>
-                <Button mode="text" onPress={() => animateClose(onClose)} textColor={colors.textSec} style={{flex: 1}}>Cancel</Button>
-                <Button mode="contained" onPress={() => animateClose(onConfirm)} buttonColor={colors.error} style={{flex: 1, borderRadius: 12}}>Delete</Button>
-            </View>
+          <View style={[styles.alertIconCircle, { backgroundColor: '#FEE2E2' }]}>
+            <IconButton icon="trash-can" size={32} iconColor={colors.error} style={{ margin: 0 }} />
+          </View>
+          <Text style={[styles.alertTitle, { color: colors.text }]}>Delete Reminder?</Text>
+          <Text style={[styles.alertDesc, { color: colors.textSec }]}>This will remove it permanently.</Text>
+
+          <View style={styles.alertBtnRow}>
+            <Button mode="text" onPress={() => animateClose(onClose)} textColor={colors.textSec} style={{ flex: 1 }}>Cancel</Button>
+            <Button mode="contained" onPress={() => animateClose(onConfirm)} buttonColor={colors.error} style={{ flex: 1, borderRadius: 12 }}>Delete</Button>
+          </View>
         </Animated.View>
       </View>
     </Modal>
@@ -220,7 +217,7 @@ export default function NotificationScreen({ navigation }) {
   const [expandedId, setExpandedId] = useState(null);
   const [alertVisible, setAlertVisible] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
-  const [deletingId, setDeletingId] = useState(null); 
+  const [deletingId, setDeletingId] = useState(null);
   const [undoData, setUndoData] = useState(null);
   const undoAnim = useRef(new Animated.Value(150)).current;
 
@@ -251,9 +248,9 @@ export default function NotificationScreen({ navigation }) {
 
       if (!loadedData || loadedData.length === 0) {
         const defaults = [
-            { id: '1', title: 'Breakfast', icon: 'coffee-outline', body: 'Log your morning coffee.', time: new Date().setHours(9, 30, 0, 0), active: true, saved: true },
-            { id: '2', title: 'Lunch', icon: 'food-variant', body: 'Track your lunch expense.', time: new Date().setHours(14, 0, 0, 0), active: true, saved: true },
-            { id: '3', title: 'Dinner', icon: 'silverware-fork-knife', body: 'Wrap up the day.', time: new Date().setHours(21, 0, 0, 0), active: true, saved: true },
+          { id: '1', title: 'Breakfast', icon: 'coffee-outline', body: 'Log your morning coffee.', time: new Date().setHours(9, 30, 0, 0), active: true, saved: true },
+          { id: '2', title: 'Lunch', icon: 'food-variant', body: 'Track your lunch expense.', time: new Date().setHours(14, 0, 0, 0), active: true, saved: true },
+          { id: '3', title: 'Dinner', icon: 'silverware-fork-knife', body: 'Wrap up the day.', time: new Date().setHours(21, 0, 0, 0), active: true, saved: true },
         ];
         setReminders(defaults);
         saveToStorage(defaults);
@@ -275,7 +272,7 @@ export default function NotificationScreen({ navigation }) {
     const updated = reminders.map(item => item.id === id ? { ...item, ...newData, saved: true } : item);
     setReminders(updated);
     saveToStorage(updated);
-    
+
     const item = updated.find(r => r.id === id);
     if (item.active) await scheduleNotification(item);
 
@@ -283,11 +280,52 @@ export default function NotificationScreen({ navigation }) {
     Keyboard.dismiss();
   };
 
+  // ✨ FIX: Properly configures the Android Channel right before scheduling
   const scheduleNotification = async (reminder) => {
     if (!reminder.active) return;
     await Notifications.cancelScheduledNotificationAsync(reminder.id);
-    const trigger = { hour: new Date(reminder.time).getHours(), minute: new Date(reminder.time).getMinutes(), repeats: true, channelId: 'daily-reminders' };
-    await Notifications.scheduleNotificationAsync({ identifier: reminder.id, content: { title: reminder.title, body: reminder.body, sound: true }, trigger });
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('expense-reminders', {
+        name: 'Expense Reminders',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: colors.primary,
+      });
+    }
+
+    const trigger = {
+      hour: new Date(reminder.time).getHours(),
+      minute: new Date(reminder.time).getMinutes(),
+      repeats: true,
+      channelId: 'expense-reminders'
+    };
+
+    try {
+      await Notifications.scheduleNotificationAsync({
+        identifier: reminder.id,
+        content: { title: reminder.title, body: reminder.body, sound: true },
+        trigger
+      });
+    } catch (error) {
+      console.error("Failed to schedule:", error);
+    }
+  };
+
+  // ✨ NEW: Quick Test Notification Button Logic
+  const triggerTestNotification = async () => {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('expense-reminders', {
+        name: 'Expense Reminders',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+      });
+    }
+    await Notifications.scheduleNotificationAsync({
+      content: { title: "Test Successful! 🚀", body: "Your notifications are working!", sound: true },
+      trigger: { seconds: 2, channelId: 'expense-reminders' },
+    });
+    Alert.alert("Test Triggered", "Close the app right now! The notification will fire in 2 seconds.");
   };
 
   const handleCancelNew = (id) => {
@@ -298,22 +336,22 @@ export default function NotificationScreen({ navigation }) {
   const requestDelete = (id) => { setItemToDelete(id); setAlertVisible(true); };
 
   const confirmDelete = () => {
-    setAlertVisible(false); 
+    setAlertVisible(false);
     if (!itemToDelete) return;
 
-    setDeletingId(itemToDelete); 
+    setDeletingId(itemToDelete);
     const item = reminders.find(r => r.id === itemToDelete);
     setUndoData(item);
 
     setTimeout(() => {
-        animateLayout();
-        const updated = reminders.filter(r => r.id !== itemToDelete);
-        setReminders(updated);
-        saveToStorage(updated);
-        Notifications.cancelScheduledNotificationAsync(itemToDelete);
-        setDeletingId(null);
-        setItemToDelete(null);
-        showUndo();
+      animateLayout();
+      const updated = reminders.filter(r => r.id !== itemToDelete);
+      setReminders(updated);
+      saveToStorage(updated);
+      Notifications.cancelScheduledNotificationAsync(itemToDelete);
+      setDeletingId(null);
+      setItemToDelete(null);
+      showUndo();
     }, 300);
   };
 
@@ -338,7 +376,7 @@ export default function NotificationScreen({ navigation }) {
     const newId = Date.now().toString();
     const newReminder = { id: newId, title: '', icon: 'bell-ring-outline', body: '', time: new Date(), active: true, saved: false };
     animateLayout();
-    setReminders([newReminder, ...reminders]); 
+    setReminders([newReminder, ...reminders]);
     setExpandedId(newId);
   };
 
@@ -347,45 +385,53 @@ export default function NotificationScreen({ navigation }) {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
-        <View style={{flexDirection: 'row', alignItems: 'center'}}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.roundBtn, { backgroundColor: colors.surface }]}>
-                <IconButton icon="arrow-left" size={24} iconColor={colors.text} style={{margin: 0}} />
-            </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>Reminders</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.roundBtn, { backgroundColor: colors.surface }]}>
+            <IconButton icon="arrow-left" size={24} iconColor={colors.text} style={{ margin: 0 }} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Reminders</Text>
         </View>
-        <TouchableOpacity onPress={addNew} style={[styles.roundBtn, { backgroundColor: colors.primary }]}>
-             <IconButton icon="plus" size={24} iconColor="#FFF" style={{margin: 0}} />
-        </TouchableOpacity>
+
+        <View style={{ flexDirection: 'row' }}>
+          {/* ✨ NEW: Test Notification Button */}
+          <TouchableOpacity onPress={triggerTestNotification} style={[styles.roundBtn, { backgroundColor: colors.surface, marginRight: 8 }]}>
+            <IconButton icon="bell-check" size={24} iconColor={colors.primary} style={{ margin: 0 }} />
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={addNew} style={[styles.roundBtn, { backgroundColor: colors.primary }]}>
+            <IconButton icon="plus" size={24} iconColor="#FFF" style={{ margin: 0 }} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 150 }} showsVerticalScrollIndicator={false}>
         {reminders.map((item, index) => (
-            <ReminderCard 
-                key={item.id} item={item} index={index} colors={colors} isOpen={expandedId === item.id} isDeleting={deletingId === item.id}
-                onDeletePress={requestDelete} onCancelNew={handleCancelNew} onSave={handleSaveEdit} toggleExpand={toggleExpand}
-                onToggle={(id) => {
-                    const updated = reminders.map(i => i.id === id ? { ...i, active: !i.active } : i);
-                    setReminders(updated);
-                    saveToStorage(updated);
-                    const toggledItem = updated.find(i => i.id === id);
-                    if (toggledItem.active) scheduleNotification(toggledItem);
-                    else Notifications.cancelScheduledNotificationAsync(id);
-                }}
-            />
+          <ReminderCard
+            key={item.id} item={item} index={index} colors={colors} isOpen={expandedId === item.id} isDeleting={deletingId === item.id}
+            onDeletePress={requestDelete} onCancelNew={handleCancelNew} onSave={handleSaveEdit} toggleExpand={toggleExpand}
+            onToggle={(id) => {
+              const updated = reminders.map(i => i.id === id ? { ...i, active: !i.active } : i);
+              setReminders(updated);
+              saveToStorage(updated);
+              const toggledItem = updated.find(i => i.id === id);
+              if (toggledItem.active) scheduleNotification(toggledItem);
+              else Notifications.cancelScheduledNotificationAsync(id);
+            }}
+          />
         ))}
-        {reminders.length === 0 && <Text style={{textAlign: 'center', color: colors.textSec, marginTop: 50}}>Tap + to add a reminder.</Text>}
-      </ScrollView> 
+        {reminders.length === 0 && <Text style={{ textAlign: 'center', color: colors.textSec, marginTop: 50 }}>Tap + to add a reminder.</Text>}
+      </ScrollView>
 
       <CustomAlert visible={alertVisible} onClose={() => setAlertVisible(false)} onConfirm={confirmDelete} colors={colors} />
 
       <Animated.View style={[styles.undoContainer, { transform: [{ translateY: undoAnim }] }]}>
-          <Surface style={[styles.undoBar, { backgroundColor: '#333' }]} elevation={4}>
-              <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                  <IconButton icon="trash-can-outline" size={20} iconColor="#FFF" />
-                  <Text style={{color: '#FFF', fontWeight: 'bold'}}>Deleted.</Text>
-              </View>
-              <TouchableOpacity onPress={performUndo} style={{padding: 10}}><Text style={{color: colors.primary, fontWeight: 'bold', fontSize: 16}}>UNDO</Text></TouchableOpacity>
-          </Surface>
+        <Surface style={[styles.undoBar, { backgroundColor: '#333' }]} elevation={4}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <IconButton icon="trash-can-outline" size={20} iconColor="#FFF" />
+            <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Deleted.</Text>
+          </View>
+          <TouchableOpacity onPress={performUndo} style={{ padding: 10 }}><Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 16 }}>UNDO</Text></TouchableOpacity>
+        </Surface>
       </Animated.View>
     </SafeAreaView>
   );
@@ -395,8 +441,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 10 },
   headerTitle: { fontSize: 26, fontWeight: '800', marginLeft: 15 },
-  roundBtn: { borderRadius: 50, padding: 4, elevation: 0 }, 
-  card: { borderRadius: 24, overflow: 'hidden' }, 
+  roundBtn: { borderRadius: 50, padding: 4, elevation: 0 },
+  card: { borderRadius: 24, overflow: 'hidden' },
   cardHeader: { flexDirection: 'row', alignItems: 'center', padding: 16 },
   iconBox: { width: 56, height: 56, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   cardTitle: { fontSize: 17, fontWeight: '700' },
