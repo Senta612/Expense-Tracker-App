@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Animated, Dimensions } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Animated, Dimensions, Alert } from 'react-native';
 import { Text, IconButton, Surface, Avatar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as FileSystem from 'expo-file-system';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { useExpenses } from '../context/ExpenseContext';
 import ExpenseCalendar from '../components/ExpenseCalendar';
 
@@ -158,6 +161,115 @@ export default function StatsScreen({ navigation }) {
     return dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
+  const handleExport = () => {
+    Alert.alert(
+      "Export Data",
+      "Choose Export Format:",
+      [
+        { text: "CSV", onPress: generateCSV },
+        { text: "PDF", onPress: generatePDF },
+        { text: "Cancel", style: "cancel" }
+      ]
+    );
+  };
+
+  const generateExportData = () => {
+    const combined = [...displayExpenses, ...displayIncomes];
+    combined.sort((a, b) => new Date(a.date) - new Date(b.date));
+    return combined;
+  };
+
+  const generateCSV = async () => {
+    try {
+      const data = generateExportData();
+      let csvContent = "Date,Type,Name,Category,Amount,Payment Mode\n";
+      
+      data.forEach(item => {
+        const date = new Date(item.date).toLocaleDateString();
+        const type = item.type || 'expense';
+        const name = `"${(item.name || '').replace(/"/g, '""')}"`;
+        const category = `"${(item.category || '').replace(/"/g, '""')}"`;
+        const amount = item.amount || 0;
+        const paymentMode = item.paymentMode || 'N/A';
+        
+        csvContent += `${date},${type},${name},${category},${amount},${paymentMode}\n`;
+      });
+      
+      const fileUri = FileSystem.documentDirectory + 'ExpenseTracker_Report.csv';
+      await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
+      await Sharing.shareAsync(fileUri);
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Export Error", "Failed to generate CSV.");
+    }
+  };
+
+  const generatePDF = async () => {
+    try {
+      const data = generateExportData();
+      
+      let tableRows = '';
+      data.forEach((item, index) => {
+        const bg = index % 2 === 0 ? '#f9f9f9' : '#ffffff';
+        const type = item.type === 'income' ? 'Income' : 'Expense';
+        const date = new Date(item.date).toLocaleDateString();
+        const amountStr = item.type === 'income' ? `+${currency}${item.amount}` : `-${currency}${item.amount}`;
+        const amountColor = item.type === 'income' ? 'green' : 'red';
+        
+        tableRows += `
+          <tr style="background-color: ${bg}; text-align: center;">
+            <td style="padding: 8px; border: 1px solid #ddd;">${date}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">${type}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">${item.name}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">${item.category}</td>
+            <td style="padding: 8px; border: 1px solid #ddd; color: ${amountColor}; font-weight: bold;">${amountStr}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">${item.paymentMode || 'N/A'}</td>
+          </tr>
+        `;
+      });
+
+      const htmlContent = `
+        <html>
+          <head>
+            <style>
+              body { font-family: Helvetica, Arial, sans-serif; margin: 40px; color: #333; }
+              h1 { text-align: center; color: #4F8EF7; }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+              th { background-color: #333; color: white; padding: 10px; border: 1px solid #ddd; }
+              .header-info { text-align: center; margin-bottom: 30px; color: #666; }
+            </style>
+          </head>
+          <body>
+            <h1>ExpenseTracker Official Report</h1>
+            <div class="header-info">
+              <p>Requested on: ${new Date().toLocaleString()}</p>
+              <p>Data Range: ${timeFilter}ly view</p>
+            </div>
+            <table>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Amount</th>
+                <th>Payment Mode</th>
+              </tr>
+              ${tableRows}
+            </table>
+          </body>
+        </html>
+      `;
+
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      const newUri = FileSystem.documentDirectory + 'ExpenseTracker_Report.pdf';
+      await FileSystem.moveAsync({ from: uri, to: newUri });
+      await Sharing.shareAsync(newUri);
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Export Error", "Failed to generate PDF.");
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
@@ -165,7 +277,9 @@ export default function StatsScreen({ navigation }) {
           <IconButton icon="arrow-left" size={24} iconColor={colors.text} style={{ margin: 0 }} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Analytics</Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity onPress={handleExport} style={styles.iconBtn}>
+          <IconButton icon="file-export" size={24} iconColor={colors.text} style={{ margin: 0 }} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.filterRow}>

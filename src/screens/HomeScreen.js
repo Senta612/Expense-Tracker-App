@@ -7,10 +7,6 @@ import Short from '../components/Short';
 
 const { width, height } = Dimensions.get('window');
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
 const FILTERS = ['All', 'Today', 'Week', 'Month', 'Year'];
 
 // --- 1. EXPENSE CARD ---
