@@ -3,7 +3,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, StyleSheet, FlatList, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, Dimensions, ScrollView,
-  ActivityIndicator, Animated, ToastAndroid, Alert
+  ActivityIndicator, Animated, ToastAndroid, Alert,
+  TouchableWithoutFeedback, Keyboard
 } from 'react-native';
 import { Text, Surface, IconButton, Avatar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -696,57 +697,62 @@ export default function ChatScreen({ navigation }) {
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View style={{ flex: 1 }}>
 
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.chatContainer}
-          showsVerticalScrollIndicator={false}
-          renderItem={renderBubble}
-        />
+            <FlatList
+              ref={flatListRef}
+              data={messages}
+              keyExtractor={item => item.id}
+              contentContainerStyle={styles.chatContainer}
+              showsVerticalScrollIndicator={false}
+              renderItem={renderBubble}
+              keyboardShouldPersistTaps="handled"
+            />
 
-        {loading && (
-          <View style={styles.typingIndicator}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={{ color: colors.textSec, marginLeft: 8, fontSize: 12 }}>Processing...</Text>
-          </View>
-        )}
+            {loading && (
+              <View style={styles.typingIndicator}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={{ color: colors.textSec, marginLeft: 8, fontSize: 12 }}>Processing...</Text>
+              </View>
+            )}
 
-        {/* Suggestion chips */}
-        <View style={styles.suggestionsContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 15, alignItems: 'center' }}>
-            {suggestions.map((chip, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[styles.chip, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '30' }]}
-                onPress={() => sendMessage(chip.cmd)}
-              >
-                <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>{chip.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Input bar */}
-        <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
-          <TextInput
-            ref={inputRef}
-            style={[styles.input, { color: colors.text, backgroundColor: colors.inputBg || colors.background, borderColor: colors.border }]}
-            placeholder="Type: 'Lunch 200' or 'Export this month'"
-            placeholderTextColor={colors.textSec}
-            value={input}
-            onChangeText={setInput}
-            onSubmitEditing={() => sendMessage()}
-            returnKeyType="send"
-          />
-          <TouchableOpacity onPress={() => sendMessage()} disabled={!input.trim()}>
-            <View style={[styles.sendButton, { backgroundColor: input.trim() ? colors.primary : colors.border }]}>
-              <IconButton icon="send" size={18} iconColor={input.trim() ? '#FFFFFF' : colors.textSec} style={{ margin: 0 }} />
+            {/* Suggestion chips */}
+            <View style={styles.suggestionsContainer}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 15, alignItems: 'center' }}>
+                {suggestions.map((chip, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[styles.chip, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '30' }]}
+                    onPress={() => sendMessage(chip.cmd)}
+                  >
+                    <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>{chip.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
-          </TouchableOpacity>
-        </View>
 
+            {/* Input bar */}
+            <View style={[styles.inputContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
+              <TextInput
+                ref={inputRef}
+                style={[styles.input, { color: colors.text, backgroundColor: colors.inputBg || colors.background, borderColor: colors.border }]}
+                placeholder="Type: 'Lunch 200' or 'Export this month'"
+                placeholderTextColor={colors.textSec}
+                value={input}
+                onChangeText={setInput}
+                onSubmitEditing={() => sendMessage()}
+                returnKeyType="send"
+              />
+              <TouchableOpacity onPress={() => sendMessage()} disabled={!input.trim()}>
+                <View style={[styles.sendButton, { backgroundColor: input.trim() ? colors.primary : colors.border }]}>
+                  <IconButton icon="send" size={18} iconColor={input.trim() ? '#FFFFFF' : colors.textSec} style={{ margin: 0 }} />
+                </View>
+              </TouchableOpacity>
+            </View>
+
+          </View>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
