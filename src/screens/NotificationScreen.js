@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useExpenses } from '../context/ExpenseContext';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
+  try { UIManager.setLayoutAnimationEnabledExperimental(true); } catch (e) { /* no-op on New Architecture */ }
 }
 
 // --- 1. REMINDER CARD COMPONENT ---

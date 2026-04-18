@@ -151,26 +151,30 @@ export const ExpenseProvider = ({ children }) => {
     const totalLimit = baseBudget + income;
     const percentageUsed = (spent / totalLimit) * 100;
 
-    if (spent > totalLimit) {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "⚠️ Budget Exceeded!",
-          body: `You have spent ${currency}${spent.toLocaleString('en-IN')}, which is over your ${budgetPeriod} limit of ${currency}${totalLimit.toLocaleString('en-IN')}.`,
-          sound: true,
-          priority: Notifications.AndroidNotificationPriority.HIGH,
-        },
-        trigger: null,
-      });
-    }
-    else if (percentageUsed >= 90) {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "🔔 Nearing Budget Limit",
-          body: `Careful! You have used ${percentageUsed.toFixed(0)}% of your ${budgetPeriod} limit.`,
-          sound: true,
-        },
-        trigger: null,
-      });
+    try {
+      if (spent > totalLimit) {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: "⚠️ Budget Exceeded!",
+            body: `You have spent ${currency}${spent.toLocaleString('en-IN')}, which is over your ${budgetPeriod} limit of ${currency}${totalLimit.toLocaleString('en-IN')}.`,
+            sound: true,
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+          },
+          trigger: null,
+        });
+      }
+      else if (percentageUsed >= 90) {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: "🔔 Nearing Budget Limit",
+            body: `Careful! You have used ${percentageUsed.toFixed(0)}% of your ${budgetPeriod} limit.`,
+            sound: true,
+          },
+          trigger: null,
+        });
+      }
+    } catch (e) {
+      console.warn('Budget notification skipped (Expo Go limitation):', e.message);
     }
   };
 

@@ -19,13 +19,17 @@ import ChatScreen from './src/screens/ChatScreen';
 import NotificationScreen from './src/screens/NotificationScreen';
 import FinancialInsightsScreen from './src/screens/FinancialInsightsScreen';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+} catch (e) {
+  console.warn('expo-notifications handler setup skipped:', e.message);
+}
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -144,26 +148,30 @@ function AppNavigator() {
 export default function App() {
   useEffect(() => {
     async function requestPermissions() {
-      if (Platform.OS === 'android') {
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        let finalStatus = existingStatus;
+      try {
+        if (Platform.OS === 'android') {
+          const { status: existingStatus } = await Notifications.getPermissionsAsync();
+          let finalStatus = existingStatus;
 
-        if (existingStatus !== 'granted') {
-          const { status } = await Notifications.requestPermissionsAsync();
-          finalStatus = status;
+          if (existingStatus !== 'granted') {
+            const { status } = await Notifications.requestPermissionsAsync();
+            finalStatus = status;
+          }
+
+          if (finalStatus !== 'granted') {
+            console.log('Notification permissions denied by user.');
+            return;
+          }
+
+          await Notifications.setNotificationChannelAsync('default', {
+            name: 'default',
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#FF231F7C',
+          });
         }
-
-        if (finalStatus !== 'granted') {
-          console.log('Notification permissions denied by user.');
-          return;
-        }
-
-        await Notifications.setNotificationChannelAsync('default', {
-          name: 'default',
-          importance: Notifications.AndroidImportance.MAX,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#FF231F7C',
-        });
+      } catch (e) {
+        console.warn('Notification setup skipped (Expo Go limitation):', e.message);
       }
     }
 

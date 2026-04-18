@@ -12,7 +12,7 @@ import IncomeForm from '../components/IncomeForm';
 const { width } = Dimensions.get('window');
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
+  try { UIManager.setLayoutAnimationEnabledExperimental(true); } catch (e) { /* no-op on New Architecture */ }
 }
 
 
