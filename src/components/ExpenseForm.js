@@ -4,8 +4,11 @@ import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react
 import { Button, Text, IconButton, Surface } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AmountInput from './AmountInput';
+import { useExpenses } from '../context/ExpenseContext';
 
 const ExpenseForm = ({ initialData, onSaveData, colors, currency, categories, paymentModes, upiApps, availableBalance }) => {
+    const { showAlert } = useExpenses();
+
     const [name, setName] = useState(initialData?.name || '');
     const [amount, setAmount] = useState(initialData?.amount?.toString() || '');
     const [category, setCategory] = useState(initialData?.category || categories[0] || 'Food');
@@ -22,11 +25,30 @@ const ExpenseForm = ({ initialData, onSaveData, colors, currency, categories, pa
     const remainingAfter = availableBalance - enteredAmount;
 
     const handleSave = () => {
-        if (!name || !amount) { onSaveData({ error: "Enter Title & Amount" }); return; }
-        setIsSaving(true);
-
-        const days = parseInt(spreadDays) || 1;
+        // Basic sanitization
+        const trimmedName = (name || '').trim();
         const totalAmount = parseFloat(amount);
+
+        // Validation
+        if (!trimmedName) {
+            showAlert('Missing title', 'Please enter a title for the expense.');
+            return;
+        }
+        if (!isFinite(totalAmount) || totalAmount <= 0) {
+            showAlert('Invalid amount', 'Enter a valid amount greater than 0.');
+            return;
+        }
+        if (!(date instanceof Date) || isNaN(date.getTime())) {
+            showAlert('Invalid date', 'Please choose a valid date.');
+            return;
+        }
+        if (!categories || !categories.includes(category)) {
+            showAlert('Invalid category', 'Please choose a valid category.');
+            return;
+        }
+        const days = Math.max(1, parseInt(spreadDays) || 1);
+
+        setIsSaving(true);
 
         if (days > 1 && !initialData) {
             const splitAmount = totalAmount / days;
@@ -39,7 +61,7 @@ const ExpenseForm = ({ initialData, onSaveData, colors, currency, categories, pa
                 payloads.push({
                     id: Date.now().toString() + '-' + i,
                     type: 'expense',
-                    name: `${name} (Day ${i + 1}/${days})`,
+                    name: `${trimmedName} (Day ${i + 1}/${days})`,
                     amount: parseFloat(splitAmount.toFixed(2)),
                     category,
                     description,
@@ -49,15 +71,25 @@ const ExpenseForm = ({ initialData, onSaveData, colors, currency, categories, pa
                 });
             }
             onSaveData({ payload: payloads, resetLoading: () => setIsSaving(false) });
+
         } else {
             const payload = {
                 id: initialData ? initialData.id : Date.now().toString(),
                 type: 'expense',
-                name, amount: totalAmount, category, description,
-                date: date.toISOString(), paymentMode,
+                name: trimmedName,
+                amount: totalAmount,
+                category,
+                description,
+                date: date.toISOString(),
+                paymentMode,
                 paymentApp: paymentMode === 'UPI' ? paymentApp : null,
             };
             onSaveData({ payload, resetLoading: () => setIsSaving(false) });
+        }
+
+        // Non-blocking warning if this will make balance negative
+        if (availableBalance - totalAmount < 0) {
+            showAlert('Warning', 'This expense will make your balance negative.');
         }
     };
 
