@@ -99,6 +99,15 @@ export const ExpenseProvider = ({ children }) => {
     } catch (e) {
       console.error("Failed to load data", e);
     }
+    // Request notification permissions so budget alerts can be delivered
+    try {
+      const { status } = await Notifications.getPermissionsAsync();
+      if (status !== 'granted') {
+        await Notifications.requestPermissionsAsync();
+      }
+    } catch (e) {
+      console.warn('Notification permission request failed', e.message);
+    }
   };
 
   const completeTutorial = async () => {
@@ -244,6 +253,12 @@ export const ExpenseProvider = ({ children }) => {
     setBudgetPeriod(period);
     await AsyncStorage.setItem('budget', amount);
     await AsyncStorage.setItem('budgetPeriod', period);
+    // Immediately evaluate budget against current expenses
+    try {
+      checkBudgetAndNotify(); expenses
+    } catch (e) {
+      console.warn('Budget check after update failed', e.message);
+    }
   };
 
   // --- 9. LIST MANAGEMENT ---
@@ -260,7 +275,7 @@ export const ExpenseProvider = ({ children }) => {
   // --- 10. HELPERS & MATH ---
   const getFilteredExpenses = (timeRange) => {
     if (!timeRange || timeRange === 'All') return expenses;
-    
+
     const now = new Date();
     let start = new Date();
     let end = new Date();
@@ -271,10 +286,10 @@ export const ExpenseProvider = ({ children }) => {
     } else if (timeRange === 'Week' || timeRange === '7 Days') {
       // Gets the exact current Calendar Week (Monday to Sunday)
       const day = now.getDay();
-      const diff = now.getDate() - day + (day === 0 ? -6 : 1); 
+      const diff = now.getDate() - day + (day === 0 ? -6 : 1);
       start = new Date(now.setDate(diff));
       start.setHours(0, 0, 0, 0);
-      
+
       end = new Date(start);
       end.setDate(start.getDate() + 6);
       end.setHours(23, 59, 59, 999);
@@ -291,7 +306,7 @@ export const ExpenseProvider = ({ children }) => {
 
     return expenses.filter(e => {
       const d = new Date(e.date);
-      return d >= start && d <= end; 
+      return d >= start && d <= end;
     });
   };
 
@@ -301,35 +316,35 @@ export const ExpenseProvider = ({ children }) => {
     let end = new Date();
 
     if (budgetPeriod === 'Weekly') {
-        start.setDate(now.getDate() - now.getDay()); 
-        start.setHours(0, 0, 0, 0);
-        end.setDate(start.getDate() + 6);
-        end.setHours(23, 59, 59, 999);
+      start.setDate(now.getDate() - now.getDay());
+      start.setHours(0, 0, 0, 0);
+      end.setDate(start.getDate() + 6);
+      end.setHours(23, 59, 59, 999);
     } else if (budgetPeriod === 'Monthly') {
-        start = new Date(now.getFullYear(), now.getMonth(), 1); 
-        // Gets the exact last millisecond of the current month
-        end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999); 
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      // Gets the exact last millisecond of the current month
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
     } else if (budgetPeriod === 'Yearly') {
-        start = new Date(now.getFullYear(), 0, 1); 
-        end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+      start = new Date(now.getFullYear(), 0, 1);
+      end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
     } else {
-        start = new Date(0); 
-        end = new Date(3000, 0, 1);
+      start = new Date(0);
+      end = new Date(3000, 0, 1);
     }
 
     const currentPeriodItems = expenses.filter(e => {
-        const d = new Date(e.date);
-        // ✨ FIX: If you spread an expense into NEXT month, it won't affect THIS month's budget!
-        return d >= start && d <= end; 
+      const d = new Date(e.date);
+      // ✨ FIX: If you spread an expense into NEXT month, it won't affect THIS month's budget!
+      return d >= start && d <= end;
     });
 
     const spentThisPeriod = currentPeriodItems
-        .filter(item => item.type === 'expense' || !item.type)
-        .reduce((sum, item) => sum + parseFloat(item.amount), 0);
+      .filter(item => item.type === 'expense' || !item.type)
+      .reduce((sum, item) => sum + parseFloat(item.amount), 0);
 
     const incomeThisPeriod = currentPeriodItems
-        .filter(item => item.type === 'income')
-        .reduce((sum, item) => sum + parseFloat(item.amount), 0);
+      .filter(item => item.type === 'income')
+      .reduce((sum, item) => sum + parseFloat(item.amount), 0);
 
     const baseBudget = parseFloat(budget) || 0;
     const availableBalance = (baseBudget + incomeThisPeriod) - spentThisPeriod;

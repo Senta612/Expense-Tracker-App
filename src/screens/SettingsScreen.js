@@ -7,18 +7,21 @@ import { useExpenses } from '../context/ExpenseContext';
 export default function SettingsScreen({ navigation }) {
   const {
     username, updateUsername, clearAllData,
-    currency, updateCurrency, 
+    currency, updateCurrency,
     upiApps, addUpiApp, removeUpiApp,
     categories, addCategory, removeCategory,
     paymentModes, addPaymentMode, removePaymentMode,
-    colors, showAlert, updateTheme, themeMode // <--- NEW IMPORTS
+    colors, showAlert, updateTheme, themeMode, // <--- NEW IMPORTS
+    budget, budgetPeriod, updateBudgetConfig, getBalanceData
   } = useExpenses();
 
   const [nameInput, setNameInput] = useState(username);
   const [newAppInput, setNewAppInput] = useState('');
   const [newCatInput, setNewCatInput] = useState('');
   const [newModeInput, setNewModeInput] = useState('');
-  
+  const [budgetInput, setBudgetInput] = useState(budget?.toString() || '0');
+  const [periodMenuVisible, setPeriodMenuVisible] = useState(false);
+
   // Theme Menu State
   const [visibleMenu, setVisibleMenu] = useState(false);
   const openMenu = () => setVisibleMenu(true);
@@ -34,14 +37,20 @@ export default function SettingsScreen({ navigation }) {
   // Use Custom Alert for Reset
   const handleReset = () => {
     showAlert("Reset App Data?", "This will permanently delete all your expenses and settings. This cannot be undone.", () => {
-        clearAllData();
+      clearAllData();
     });
+  };
+
+  const handleSaveBudget = async () => {
+    const amt = (budgetInput || '0').toString();
+    await updateBudgetConfig(amt, budgetPeriod);
+    showAlert('Success', `Budget set: ${currency}${parseFloat(amt || 0).toLocaleString('en-IN')} (${budgetPeriod})`);
   };
 
   const SectionHeader = ({ icon, title }) => (
     <View style={styles.sectionHeaderRow}>
-        <IconButton icon={icon} size={20} iconColor={colors.textSec} style={{margin:0, marginRight: 5}} />
-        <Text style={[styles.sectionTitle, { color: colors.textSec }]}>{title}</Text>
+      <IconButton icon={icon} size={20} iconColor={colors.textSec} style={{ margin: 0, marginRight: 5 }} />
+      <Text style={[styles.sectionTitle, { color: colors.textSec }]}>{title}</Text>
     </View>
   );
 
@@ -55,7 +64,7 @@ export default function SettingsScreen({ navigation }) {
             <IconButton icon="arrow-left" size={26} iconColor={colors.text} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Settings</Text>
-          
+
           {/* THEME SWITCHER */}
           <Menu
             visible={visibleMenu}
@@ -76,12 +85,12 @@ export default function SettingsScreen({ navigation }) {
           <SectionHeader icon="account-circle-outline" title="Profile" />
           <Surface style={[styles.card, { backgroundColor: colors.surface }]} elevation={1}>
             <Text style={[styles.label, { color: colors.text }]}>Your Name</Text>
-            <TextInput 
-                value={nameInput} 
-                onChangeText={setNameInput} 
-                style={[styles.input, { color: colors.text, borderColor: colors.border }]} 
-                placeholder="Enter name"
-                placeholderTextColor={colors.textSec}
+            <TextInput
+              value={nameInput}
+              onChangeText={setNameInput}
+              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+              placeholder="Enter name"
+              placeholderTextColor={colors.textSec}
             />
             <Button mode="contained" onPress={handleSaveName} buttonColor={colors.primary} textColor="#FFF" style={styles.saveBtn}>Save Name</Button>
           </Surface>
@@ -96,8 +105,8 @@ export default function SettingsScreen({ navigation }) {
                   key={symbol}
                   selected={currency === symbol}
                   onPress={() => updateCurrency(symbol)}
-                  showSelectedCheck={false} 
-                  style={[ styles.chip, { backgroundColor: currency === symbol ? colors.primary : colors.chip, borderColor: colors.border } ]}
+                  showSelectedCheck={false}
+                  style={[styles.chip, { backgroundColor: currency === symbol ? colors.primary : colors.chip, borderColor: colors.border }]}
                   textStyle={{ color: currency === symbol ? '#FFF' : colors.text, fontWeight: 'bold', fontSize: 16 }}
                 >
                   {symbol}
@@ -148,6 +157,51 @@ export default function SettingsScreen({ navigation }) {
             </View>
           </Surface>
 
+          {/* Budgeting */}
+          <SectionHeader icon="chart-pie" title="Budget" />
+          <Surface style={[styles.card, { backgroundColor: colors.surface }]} elevation={1}>
+            <Text style={[styles.label, { color: colors.text }]}>Set Budget Amount</Text>
+            <TextInput
+              value={budgetInput}
+              onChangeText={setBudgetInput}
+              keyboardType="numeric"
+              style={[styles.input, { color: colors.text, borderColor: colors.border }]}
+              placeholder="0"
+              placeholderTextColor={colors.textSec}
+            />
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ color: colors.text }}>Period: {budgetPeriod}</Text>
+              <Menu
+                visible={periodMenuVisible}
+                onDismiss={() => setPeriodMenuVisible(false)}
+                anchor={<Button mode="outlined" onPress={() => setPeriodMenuVisible(true)} textColor={colors.primary}>Change Period</Button>}
+                contentStyle={{ backgroundColor: colors.surface }}
+              >
+                <Menu.Item onPress={() => { updateBudgetConfig(budgetInput, 'Weekly'); setPeriodMenuVisible(false); }} title="Weekly" titleStyle={{ color: colors.text }} />
+                <Menu.Item onPress={() => { updateBudgetConfig(budgetInput, 'Monthly'); setPeriodMenuVisible(false); }} title="Monthly" titleStyle={{ color: colors.text }} />
+                <Menu.Item onPress={() => { updateBudgetConfig(budgetInput, 'Yearly'); setPeriodMenuVisible(false); }} title="Yearly" titleStyle={{ color: colors.text }} />
+              </Menu>
+            </View>
+
+            <View style={{ marginTop: 12 }}>
+              <Button mode="contained" onPress={handleSaveBudget} buttonColor={colors.primary} textColor="#FFF" style={styles.saveBtn}>Save Budget</Button>
+            </View>
+
+            {/* Summary */}
+            <View style={{ marginTop: 12 }}>
+              {(() => {
+                const { spentThisPeriod, incomeThisPeriod, availableBalance } = getBalanceData();
+                return (
+                  <>
+                    <Text style={{ color: colors.textSec }}>Spent this {budgetPeriod.toLowerCase()}: {currency}{spentThisPeriod?.toLocaleString('en-IN')}</Text>
+                    <Text style={{ color: colors.textSec }}>Available: {currency}{availableBalance?.toLocaleString('en-IN')}</Text>
+                  </>
+                );
+              })()}
+            </View>
+          </Surface>
+
           {/* Data Management */}
           <SectionHeader icon="database-outline" title="Data" />
           <Surface style={[styles.card, { backgroundColor: colors.surface }]} elevation={1}>
@@ -177,7 +231,7 @@ const styles = StyleSheet.create({
   saveBtn: { borderRadius: 12 },
   addAppRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { borderWidth: 1, borderColor: 'transparent' }, 
+  chip: { borderWidth: 1, borderColor: 'transparent' },
   footer: { alignItems: 'center', marginTop: 20 },
   version: { fontSize: 12 }
 });
