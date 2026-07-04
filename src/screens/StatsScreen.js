@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Animated, Dimensions, Alert } from 'react-native';
 import { Text, IconButton, Surface, Avatar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useExpenses } from '../context/ExpenseContext';
@@ -129,7 +129,7 @@ export default function StatsScreen({ navigation }) {
   const displayTotalExpense = displayExpenses.reduce((sum, item) => sum + item.amount, 0);
   const displayTotalIncome = displayIncomes.reduce((sum, item) => sum + item.amount, 0);
   const displayNetSavings = displayTotalIncome - displayTotalExpense;
-  
+
   // 2. Budget Total (Always compares the full time filter, including split days)
   const periodTotalExpense = chartExpenses.reduce((sum, item) => sum + item.amount, 0);
   const periodTotalIncome = chartIncomes.reduce((sum, item) => sum + item.amount, 0);
@@ -183,7 +183,7 @@ export default function StatsScreen({ navigation }) {
     try {
       const data = generateExportData();
       let csvContent = "Date,Type,Name,Category,Amount,Payment Mode\n";
-      
+
       data.forEach(item => {
         const date = new Date(item.date).toLocaleDateString();
         const type = item.type || 'expense';
@@ -191,10 +191,10 @@ export default function StatsScreen({ navigation }) {
         const category = `"${(item.category || '').replace(/"/g, '""')}"`;
         const amount = item.amount || 0;
         const paymentMode = item.paymentMode || 'N/A';
-        
+
         csvContent += `${date},${type},${name},${category},${amount},${paymentMode}\n`;
       });
-      
+
       const fileUri = FileSystem.documentDirectory + 'ExpenseTracker_Report.csv';
       await FileSystem.writeAsStringAsync(fileUri, csvContent, { encoding: FileSystem.EncodingType.UTF8 });
       await Sharing.shareAsync(fileUri);
@@ -207,7 +207,7 @@ export default function StatsScreen({ navigation }) {
   const generatePDF = async () => {
     try {
       const data = generateExportData();
-      
+
       let tableRows = '';
       data.forEach((item, index) => {
         const bg = index % 2 === 0 ? '#f9f9f9' : '#ffffff';
@@ -215,7 +215,7 @@ export default function StatsScreen({ navigation }) {
         const date = new Date(item.date).toLocaleDateString();
         const amountStr = item.type === 'income' ? `+${currency}${item.amount}` : `-${currency}${item.amount}`;
         const amountColor = item.type === 'income' ? 'green' : 'red';
-        
+
         tableRows += `
           <tr style="background-color: ${bg}; text-align: center;">
             <td style="padding: 8px; border: 1px solid #ddd;">${date}</td>
@@ -291,7 +291,7 @@ export default function StatsScreen({ navigation }) {
               setSelectedDate(null); // Deselect date to see macro stats
             }}
             style={[
-              styles.filterPill, 
+              styles.filterPill,
               timeFilter === f && !selectedDate ? { backgroundColor: colors.primary } : { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }
             ]}
           >
@@ -304,15 +304,15 @@ export default function StatsScreen({ navigation }) {
 
         {/* ✨ 2. The Calendar now naturally takes up 100% of the width! */}
         <ExpenseCalendar
-          expenses={allExpensesForCalendar} 
-          selectedDate={selectedDate} 
-          onSelectDate={setSelectedDate} 
+          expenses={allExpensesForCalendar}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
           colors={colors}
         />
 
         {/* ✨ 3. Wrap everything else in a Padded Container so your charts stay perfectly centered! */}
         <View style={{ paddingHorizontal: 20 }}>
-          
+
           {selectedDate && (
             <View style={{ paddingBottom: 40 }}>
               <Text style={[styles.listHeader, { color: colors.text }]}>
