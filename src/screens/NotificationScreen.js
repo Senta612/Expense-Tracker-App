@@ -297,14 +297,18 @@ export default function NotificationScreen({ navigation }) {
     const trigger = {
       hour: new Date(reminder.time).getHours(),
       minute: new Date(reminder.time).getMinutes(),
-      repeats: true,
-      channelId: 'expense-reminders'
+      repeats: true
     };
 
     try {
       await Notifications.scheduleNotificationAsync({
         identifier: reminder.id,
-        content: { title: reminder.title, body: reminder.body, sound: true },
+        content: {
+          title: reminder.title,
+          body: reminder.body,
+          sound: true,
+          channelId: 'expense-reminders'
+        },
         trigger
       });
     } catch (error) {
@@ -322,8 +326,13 @@ export default function NotificationScreen({ navigation }) {
       });
     }
     await Notifications.scheduleNotificationAsync({
-      content: { title: "Test Successful! 🚀", body: "Your notifications are working!", sound: true },
-      trigger: { seconds: 2, channelId: 'expense-reminders' },
+      content: {
+        title: "Test Successful! 🚀",
+        body: "Your notifications are working!",
+        sound: true,
+        channelId: 'expense-reminders'
+      },
+      trigger: { seconds: 2 },
     });
     Alert.alert("Test Triggered", "Close the app right now! The notification will fire in 2 seconds.");
   };

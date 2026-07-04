@@ -130,6 +130,7 @@ export const ExpenseProvider = ({ children }) => {
   };
 
   const checkBudgetAndNotify = async (updatedExpenses) => {
+    const sourceExpenses = Array.isArray(updatedExpenses) ? updatedExpenses : expenses;
     const baseBudget = parseFloat(budget) || 0;
     if (baseBudget <= 0) return;
 
@@ -147,7 +148,7 @@ export const ExpenseProvider = ({ children }) => {
       cutoff = new Date(0);
     }
 
-    const currentPeriodItems = updatedExpenses.filter(e => new Date(e.date) >= cutoff);
+    const currentPeriodItems = sourceExpenses.filter(e => new Date(e.date) >= cutoff);
 
     const spent = currentPeriodItems
       .filter(item => item.type === 'expense' || !item.type)
@@ -255,7 +256,7 @@ export const ExpenseProvider = ({ children }) => {
     await AsyncStorage.setItem('budgetPeriod', period);
     // Immediately evaluate budget against current expenses
     try {
-      checkBudgetAndNotify(); expenses
+      checkBudgetAndNotify(expenses);
     } catch (e) {
       console.warn('Budget check after update failed', e.message);
     }
